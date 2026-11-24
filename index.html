@@ -15,6 +15,7 @@ header img{height:44px;display:block}
 header .t{border-left:2px solid var(--latte);padding-left:20px;flex:1;min-width:200px}
 header h1{margin:0;font-size:26px;letter-spacing:.03em;line-height:1.1}
 header p{margin:0;font-size:12px}
+.chip.warn{background:var(--doppio);color:var(--flat);border-color:var(--doppio)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{background:var(--flat);border:1px solid var(--latte);border-radius:99px;padding:3px 12px;font-size:12px;font-weight:700}
 .chip b{color:var(--mocha)}
@@ -86,6 +87,8 @@ td.c{width:170px}td.a{width:70px;text-align:right}
 <main>
 <section class="card" id="s1">
   <div class="sh"><span class="num">1</span><h2>Treinamentos cadastrados</h2>
+    <span class="chip" id="syncChip">Cadastro oficial</span>
+    <button class="small primary" onclick="publishCat()" title="Copia o cadastro e abre o GitHub para publicar a atualização">Publicar para todos</button>
     <button class="small" onclick="exportCat()">Exportar</button>
     <button class="small" onclick="$('imp').click()">Importar</button><input type="file" id="imp" accept=".json,application/json" hidden></div>
   <div class="tw"><table><thead><tr><th>#</th><th>Treinamento</th><th>Carga horária (h)</th><th></th></tr></thead><tbody id="catBody"></tbody></table></div>
@@ -94,7 +97,7 @@ td.c{width:170px}td.a{width:70px;text-align:right}
     <input class="ch" id="newCarga" inputmode="decimal" placeholder="Carga (ex.: 0,5)">
     <button class="primary" onclick="addTraining()">+ Adicionar</button>
   </div>
-  <p class="hint">Edite o nome ou a carga direto na tabela; as mudanças valem na hora e ficam salvas neste navegador. Use <b>Exportar</b> para guardar uma cópia e <b>Importar</b> para levar a lista a outro computador. Carga em horas: 0,5 = 30 min · 1,5 = 1h30.</p>
+  <p class="hint">Todos que abrirem o site recebem o <b>cadastro oficial</b>. Edite o nome ou a carga direto na tabela: a mudança vale neste computador na hora. Para valer para todos, clique em <b>Publicar para todos</b> (copia o cadastro e abre o GitHub: Ctrl+A, Ctrl+V, Commit changes). Carga em horas: 0,5 = 30 min · 1,5 = 1h30.</p>
 </section>
 
 <section class="card" id="s2">
@@ -155,7 +158,8 @@ const tplBytes=(b=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.l
 const $=id=>document.getElementById(id);
 const KC='lista-presenca-catalogo-v2',KS='lista-presenca-estado-v2';
 let catalog=[],lists=[];   // lists: {tid,nome,carga,inicio,manual,instrutor,extra}
-let uid=1;
+let uid=1,dirty=false;
+const REPO='DMOS15/LISTA-DE-PRESEN-A',KD='lista-presenca-sujo-v2',KH='lista-presenca-hash-v2';
 
 /* ---------- utilidades ---------- */
 function toast(t,err){const e=$('toast');e.textContent=t;e.className='show'+(err?' err':'');clearTimeout(toast.t);toast.t=setTimeout(()=>e.className='',2600)}
@@ -170,10 +174,50 @@ function fim(l){const s=toMin(l.inicio);return s==null||l.carga==null?null:toTim
 
 /* ---------- catálogo ---------- */
 function loadCat(){
+  try{dirty=!!localStorage.getItem(KD)}catch(e){}
   try{const s=JSON.parse(localStorage.getItem(KC)||'null');if(Array.isArray(s)){catalog=s;uid=Math.max(1,...s.map(x=>x.id+1));return}}catch(e){}
   catalog=[{id:1,nome:'CCC (exemplo — edite ou exclua)',carga:0.5}];uid=2;
 }
-function saveCat(){try{localStorage.setItem(KC,JSON.stringify(catalog))}catch(e){}}
+function saveCat(mark){
+  if(mark!==false){dirty=true;try{localStorage.setItem(KD,'1')}catch(e){}}
+  try{localStorage.setItem(KC,JSON.stringify(catalog))}catch(e){}
+  updateSync();
+}
+function updateSync(){const c=$('syncChip');if(!c)return;c.textContent=dirty?'Alterações não publicadas':'Cadastro oficial';c.className='chip'+(dirty?' warn':'')}
+function cleanCat(a){return a.map((x,i)=>({id:x.id!=null?x.id:i+1,nome:String(x.nome||'').trim(),carga:parseNum(x.carga)})).filter(x=>x.nome&&x.carga!=null)}
+function catJson(){return JSON.stringify(catalog.map(t=>({id:t.id,nome:t.nome,carga:t.carga})),null,1)}
+function applyRemote(cl,h){
+  catalog=cl;uid=Math.max(1,...cl.map(x=>x.id+1));dirty=false;
+  try{localStorage.setItem(KD,'');localStorage.setItem(KH,h)}catch(e){}
+  saveCat(false);
+  lists.forEach(l=>{const t=catalog.find(x=>x.nome===l.nome);if(t){l.tid=t.id;l.carga=t.carga}else{l.tid=null;l.nome='';l.carga=null}});
+  renderCat();renderLists();
+}
+async function syncRemote(){
+  let cl;
+  try{
+    const r=await fetch('treinamentos.json?'+Date.now(),{cache:'no-store'});
+    if(!r.ok)return;
+    cl=cleanCat(await r.json());
+  }catch(e){return}   // aberto direto do arquivo ou sem internet: segue com o cadastro local
+  if(!cl.length)return;
+  const h=JSON.stringify(cl.map(x=>[x.nome,x.carga]));
+  let seen='';try{seen=localStorage.getItem(KH)||''}catch(e){}
+  if(h===JSON.stringify(catalog.map(x=>[x.nome,x.carga]))){ // local já igual ao oficial
+    dirty=false;try{localStorage.setItem(KD,'');localStorage.setItem(KH,h)}catch(e){}updateSync();return}
+  if(h===seen)return;                       // oficial não mudou desde a última visita: mantém o local
+  if(!dirty){applyRemote(cl,h);toast('Cadastro de treinamentos atualizado.');return}
+  if(confirm('O cadastro oficial foi atualizado, mas você tem alterações neste computador que não foram publicadas.\n\nOK = usar o cadastro oficial (descarta as suas alterações)\nCancelar = manter o seu')){applyRemote(cl,h);toast('Cadastro oficial carregado.')}
+  else{try{localStorage.setItem(KH,h)}catch(e){}}
+}
+async function publishCat(){
+  const txt=catJson();let ok=false;
+  try{await navigator.clipboard.writeText(txt);ok=true}catch(e){
+    try{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove()}catch(e2){}
+  }
+  window.open('https://github.com/'+REPO+'/edit/main/treinamentos.json','_blank');
+  toast(ok?'Cadastro copiado! No GitHub: Ctrl+A, Ctrl+V e Commit changes.':'Não consegui copiar; use Exportar e envie o arquivo ao GitHub.',!ok);
+}
 function renderCat(){
   const b=$('catBody');
   if(!catalog.length){b.innerHTML='<tr><td colspan="4" class="empty">Nenhum treinamento cadastrado. Adicione abaixo.</td></tr>'}
@@ -358,7 +402,7 @@ async function run(preview){
   }catch(e){toast('Erro ao gerar o PDF: '+e.message,1)}
   btn.disabled=false;
 }
-load();
+load();updateSync();syncRemote();
 </script>
 </body>
 </html>
