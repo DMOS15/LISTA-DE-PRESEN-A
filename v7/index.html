@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gerador de Lista de Presença</title>
+<style>
+:root{--flat:#fcf9f4;--crema:#f7eedc;--latte:#d3ba91;--mocha:#8c7454;--doppio:#3f3a31;--brand:#5a3028;--ok:#2f6b3a;--err:#a04830}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font:15px/1.5 Arial,Helvetica,sans-serif;background:var(--flat);color:var(--doppio)}
+h1,h2,h3,.num,.badge,.brandfont{font-family:"TW Cen MT Condensed","Tw Cen MT Condensed","Arial Narrow",Arial,sans-serif;text-transform:uppercase;font-weight:700}
+header{position:sticky;top:0;z-index:20;background:var(--crema);border-bottom:3px solid var(--latte);padding:10px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+header img{height:44px;display:block}
+header .t{border-left:2px solid var(--latte);padding-left:20px;flex:1;min-width:200px}
+header h1{margin:0;font-size:26px;letter-spacing:.03em;line-height:1.1}
+header p{margin:0;font-size:12px}
+.chip.warn{background:var(--doppio);color:var(--flat);border-color:var(--doppio)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:var(--flat);border:1px solid var(--latte);border-radius:99px;padding:3px 12px;font-size:12px;font-weight:700}
+.chip b{color:var(--mocha)}
+main{max-width:1080px;margin:0 auto;padding:22px 16px 120px}
+section.card{background:var(--crema);border:1px solid var(--latte);border-radius:8px;padding:20px;margin-bottom:18px;box-shadow:0 1px 0 rgba(63,58,49,.06)}
+.sh{display:flex;align-items:center;gap:12px;margin-bottom:14px;border-bottom:2px solid var(--latte);padding-bottom:8px}
+.sh .num{background:var(--doppio);color:var(--flat);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:18px;flex:none}
+.sh h2{margin:0;font-size:22px;letter-spacing:.04em;flex:1}
+.sh .hint{margin:0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+label{display:block;margin-bottom:4px;font-weight:700;font-variant:small-caps;letter-spacing:.05em;font-size:14px}
+input,textarea,select{width:100%;padding:9px 10px;border:1px solid var(--mocha);border-radius:4px;font:inherit;background:var(--flat);color:var(--doppio)}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--mocha);outline-offset:1px}
+textarea{resize:vertical;min-height:38px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:4px;border:1px solid var(--doppio);background:var(--flat);color:var(--doppio);padding:9px 14px;transition:background .15s}
+button:hover{background:var(--latte)}
+button.primary{background:var(--doppio);color:var(--flat)}
+button.primary:hover{background:var(--mocha);border-color:var(--mocha)}
+button:disabled{opacity:.6;cursor:wait}
+button.small{padding:5px 10px;font-size:12px}
+button.icon{padding:5px 9px;line-height:1}
+button.danger:hover{background:var(--err);border-color:var(--err);color:var(--flat)}
+.hint{font-size:12px;margin-top:6px}
+/* catálogo */
+.tw{overflow-y:auto;overflow-x:hidden;height:300px;border:1px solid var(--latte);border-radius:6px;background:var(--flat);overscroll-behavior:contain}
+table{width:100%;border-collapse:collapse}
+th{white-space:nowrap;font-variant:small-caps;letter-spacing:.05em;text-align:left;font-size:14px;padding:8px 10px;background:var(--latte);position:sticky;top:0}
+td{padding:6px 10px;border-top:1px solid var(--crema)}
+td input{border-color:transparent;background:transparent;padding:6px 8px}
+td input:hover{border-color:var(--latte)}
+td input:focus{background:var(--flat);border-color:var(--mocha)}
+td.n{width:44px;text-align:center;font-weight:700;color:var(--mocha)}
+td.c{width:170px}td.a{width:70px;text-align:right}
+.add{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.add input.nm{flex:1;min-width:200px}.add input.ch{width:130px}
+.empty{padding:22px;text-align:center}
+/* listas */
+.list{border:1px solid var(--latte);border-left:6px solid var(--mocha);border-radius:6px;padding:14px;margin-bottom:12px;background:var(--flat);animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.list.err{border-left-color:var(--err);box-shadow:0 0 0 2px var(--err)}
+.list h3{margin:0 0 10px;font-size:18px;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.badge{background:var(--doppio);color:var(--flat);border-radius:99px;padding:1px 12px;font-size:16px}
+.time{display:flex;align-items:center;gap:8px}
+.time .to{font-weight:700}
+.end{background:var(--crema);border:1px solid var(--latte);border-radius:4px;padding:9px 10px;min-width:70px;text-align:center;font-weight:700}
+.full{grid-column:1/-1}
+.tag{font-size:11px;font-weight:700;background:var(--latte);border-radius:99px;padding:1px 8px;margin-left:6px}
+.tools{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+/* agenda */
+.agenda{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ag{background:var(--doppio);color:var(--flat);border-radius:4px;padding:4px 10px;font-size:12px}
+.ag span{color:var(--latte);font-weight:700}
+#prev{width:100%;height:85vh;border:1px solid var(--mocha);border-radius:6px;display:none;margin-top:14px;background:var(--flat)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--crema);border-top:3px solid var(--latte);padding:10px 16px;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}
+#toast{position:fixed;left:50%;bottom:84px;transform:translate(-50%,20px);background:var(--doppio);color:var(--flat);padding:10px 18px;border-radius:6px;opacity:0;pointer-events:none;transition:.25s;z-index:30;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:var(--err)}
+@media(max-width:640px){header{padding:8px 12px}header h1{font-size:20px}.chips{display:none}}
+/* abas */
+.tabs{display:flex;gap:4px;max-width:1080px;margin:14px auto 0;padding:0 16px;border-bottom:3px solid var(--latte)}
+.tabs button{border:1px solid var(--latte);border-bottom:none;border-radius:8px 8px 0 0;background:var(--flat);padding:10px 20px;font-family:"TW Cen MT Condensed","Tw Cen MT Condensed","Arial Narrow",Arial,sans-serif;text-transform:uppercase;font-size:18px;letter-spacing:.04em;margin-bottom:-3px}
+.tabs button.on{background:var(--doppio);color:var(--flat);border-color:var(--doppio)}
+.tabs button .dot{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:99px;background:var(--latte);color:var(--doppio);font-size:13px}
+/* nomes por lista */
+.nomes textarea{min-height:92px;font-size:13px}
+.nomes .cnt{font-size:12px;font-weight:700;color:var(--mocha)}
+.dig{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.dig .st{font-size:12px}
+/* presença digital */
+.gate{max-width:380px;margin:30px auto;text-align:center}
+.gate input{text-align:center;font-size:20px;letter-spacing:.3em;margin:10px 0}
+.sess{border:1px solid var(--latte);border-left:6px solid var(--mocha);border-radius:6px;padding:14px;margin-bottom:12px;background:var(--flat)}
+.sess.enc{border-left-color:var(--latte);opacity:.9}
+.sess h3{margin:0;font-size:19px;letter-spacing:.04em}
+.sess .sub{font-size:13px;margin:2px 0 8px}
+.prog{height:10px;background:var(--crema);border:1px solid var(--latte);border-radius:99px;overflow:hidden;margin:6px 0}
+.prog i{display:block;height:100%;background:var(--doppio)}
+.sess .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pl{margin-top:10px;border-top:1px solid var(--latte)}
+.pl table{font-size:13px}
+.pl td{padding:5px 8px}
+.pl img{height:26px;background:#fff;border:1px solid var(--latte);border-radius:3px;vertical-align:middle}
+#qrbox{position:fixed;inset:0;background:rgba(63,58,49,.6);z-index:50;display:none;align-items:center;justify-content:center;padding:16px}
+#qrbox .in{background:var(--flat);border-radius:10px;padding:22px;max-width:420px;width:100%;text-align:center}
+#qrbox canvas{width:100%;max-width:340px;image-rendering:pixelated}
+#qrbox p{word-break:break-all;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <img id="logo" alt="Keurig Dr Pepper — Coffee Operating Unit">
+  <div class="t"><h1>Gerador de Lista de Presença</h1><p>Registro de Treinamento · FRM-01-032</p></div>
+  <div class="chips"><span class="chip"><b id="cLists">0</b> listas</span><span class="chip"><b id="cDate">—</b></span><span class="chip"><b id="cTrain">0</b> treinamentos cadastrados</span></div>
+</header>
+<nav class="tabs"><button id="tabG" class="on" onclick="showTab('gerar')">Gerar listas</button><button id="tabD" onclick="showTab('digital')">Presença digital<span class="dot" id="tabDn"></span></button></nav>
+
+<main>
+<div id="v-gerar">
+<section class="card" id="s1">
+  <div class="sh"><span class="num">1</span><h2>Treinamentos cadastrados</h2>
+    <span class="chip" id="syncChip">Cadastro oficial</span>
+    <button class="small primary" onclick="publishCat()" title="Publica o cadastro para todos">Publicar para todos</button>
+    <button class="small" id="undoBtn" onclick="undoPublish()" style="display:none" title="Volta o cadastro de todos para a versão anterior">Desfazer última publicação</button>
+    <button class="small" onclick="exportCat()">Exportar</button>
+    <button class="small" onclick="$('imp').click()">Importar</button><input type="file" id="imp" accept=".json,application/json" hidden></div>
+  <div class="tw"><table><thead><tr><th>#</th><th>Treinamento</th><th>Carga horária (h)</th><th></th></tr></thead><tbody id="catBody"></tbody></table></div>
+  <div class="add">
+    <input class="nm" id="newName" placeholder="Nome do novo treinamento">
+    <input class="ch" id="newCarga" inputmode="decimal" placeholder="Carga (ex.: 0,5)">
+    <button class="primary" onclick="addTraining()">+ Adicionar</button>
+  </div>
+  <p class="hint">Todos que abrirem o site recebem o <b>cadastro oficial</b>. Edite o nome ou a carga direto na tabela: a mudança vale neste computador na hora. As mudanças são publicadas sozinhas para todos poucos segundos depois (ou use <b>Publicar para todos</b>). Publicou errado? Use <b>Desfazer última publicação</b>. Carga em horas: 0,5 = 30 min · 1,5 = 1h30.</p>
+</section>
+
+<section class="card" id="s2">
+  <div class="sh"><span class="num">2</span><h2>Dados do dia</h2></div>
+  <div class="grid">
+    <div><label for="data">Data</label><input type="date" id="data"></div>
+    <div><label for="inicio">Início da 1ª lista</label><input type="time" id="inicio" value="08:00"></div>
+    <div><label for="turma">Turma</label><input id="turma" placeholder="Ex.: A"></div>
+    <div><label for="local">Local</label><input id="local" placeholder="Ex.: Sala de treinamento"></div>
+  </div>
+  <p class="hint">Data, turma e local valem para todas as listas. Os horários das listas seguintes são calculados a partir do início e da carga horária de cada treinamento.</p>
+</section>
+
+<section class="card" id="s3">
+  <div class="sh"><span class="num">3</span><h2>Listas de presença</h2>
+    <label for="qty" style="margin:0">Quantidade</label>
+    <input type="number" id="qty" min="1" max="50" value="1" style="width:80px">
+  </div>
+  <div class="tools">
+    <button class="small" onclick="copyFirst('instrutor')">Instrutor do 1º em todos</button>
+    <button class="small" onclick="copyFirst('extra')">Conteúdo adicional do 1º em todos</button>
+    <button class="small" onclick="recalcAll(true)">Recalcular horários em sequência</button>
+  </div>
+  <div id="lists"></div>
+  <div class="agenda" id="agenda"></div>
+</section>
+
+<iframe id="prev" title="Pré-visualização"></iframe>
+</div>
+<div id="v-digital" style="display:none">
+<section class="card">
+  <div class="sh"><span class="num">★</span><h2>Presença digital</h2>
+    <button class="small" onclick="loadSessions()">Atualizar</button>
+    <button class="small" onclick="sairPin()" id="sairBtn" style="display:none">Sair</button></div>
+  <div id="gate" class="gate">
+    <p>Digite o PIN da gestão para ver as listas de assinatura, o QR code e baixar o PDF assinado.</p>
+    <input type="password" id="pinIn" inputmode="numeric" autocomplete="off" placeholder="PIN">
+    <button class="primary" onclick="entrarPin()">Entrar</button>
+    <p class="hint" id="gateMsg"></p>
+  </div>
+  <div id="painel" style="display:none">
+    <p class="hint" style="margin:0 0 12px">Para criar uma lista digital, cadastre os nomes na lista (aba <b>Gerar listas</b>) e clique em <b>Abrir para assinatura digital</b>. Quem assina usa o link ou o QR code, sem PIN.</p>
+    <div id="sessBox"></div>
+  </div>
+</section>
+</div>
+<div id="qrbox" onclick="if(event.target===this)fecharQR()"><div class="in"><h3 id="qrT" style="margin:0 0 10px"></h3><canvas id="qrC"></canvas><p id="qrL"></p><button class="primary" onclick="fecharQR()">Fechar</button></div></div>
+</main>
+
+<div class="bar" id="bar">
+  <button onclick="clearAll()">Limpar listas</button>
+  <button onclick="run(true)">Pré-visualizar</button>
+  <button class="primary" id="dl" onclick="run(false)">Baixar PDF</button>
+</div>
+<div id="toast"></div>
+
+<script src="pdf-lib.min.js"></script>
+<script src="qr.js"></script>
+<script src="assets.js"></script>
+<script>
+const DEFAULT_TPL_B64=window.TPL_B64;document.getElementById("logo").src="data:image/png;base64,"+window.LOGO_B64;
+const tplBytes=(b=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u})(DEFAULT_TPL_B64);
+const $=id=>document.getElementById(id);
+const KC='lista-presenca-catalogo-v2',KS='lista-presenca-estado-v2';
+let catalog=[],lists=[];   // lists: {tid,nome,carga,inicio,manual,instrutor,extra}
+let uid=1,dirty=false,apiOn=false,apiProt=false,pubTimer=null,declined=false,publishing=false;
+const REPO='DMOS15/LISTA-DE-PRESEN-A',KD='lista-presenca-sujo-v2',KH='lista-presenca-hash-v2';
+
+/* ---------- utilidades ---------- */
+function toast(t,err){const e=$('toast');e.textContent=t;e.className='show'+(err?' err':'');clearTimeout(toast.t);toast.t=setTimeout(()=>e.className='',2600)}
+function parseNum(v){const n=parseFloat(String(v).replace(',','.'));return isFinite(n)&&n>=0?n:null}
+function fmtNum(n){return (Math.round(n*100)/100).toString().replace('.',',')}
+function fmtCarga(n){return n==null?'':fmtNum(n)+'h'}
+function toMin(t){if(!t)return null;const[h,m]=t.split(':').map(Number);return h*60+m}
+function toTime(m){m=Math.round(m)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function fmtDate(v){if(!v)return'';const[y,m,d]=v.split('-');return `${d}/${m}/${y}`}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fim(l){const s=toMin(l.inicio);return s==null||l.carga==null?null:toTime(s+l.carga*60)}
+
+/* ---------- catálogo ---------- */
+function loadCat(){
+  try{dirty=!!localStorage.getItem(KD)}catch(e){}
+  try{const s=JSON.parse(localStorage.getItem(KC)||'null');if(Array.isArray(s)){catalog=s;uid=Math.max(1,...s.map(x=>x.id+1));return}}catch(e){}
+  catalog=[{id:1,nome:'CCC (exemplo — edite ou exclua)',carga:0.5}];uid=2;
+}
+function saveCat(mark){
+  if(mark!==false){dirty=true;try{localStorage.setItem(KD,'1')}catch(e){}}
+  try{localStorage.setItem(KC,JSON.stringify(catalog))}catch(e){}
+  updateSync();
+  if(mark!==false&&apiOn){clearTimeout(pubTimer);pubTimer=setTimeout(()=>doPublish(false),1500)}
+}
+function updateSync(){const u=$('undoBtn');if(u)u.style.display=apiOn?'':'none';const c=$('syncChip');if(!c)return;c.textContent=publishing?'Publicando...':dirty?'Alterações não publicadas':'Cadastro oficial';c.className='chip'+(dirty||publishing?' warn':'')}
+function cleanCat(a){return a.map((x,i)=>({id:x.id!=null?x.id:i+1,nome:String(x.nome||'').trim(),carga:parseNum(x.carga)})).filter(x=>x.nome&&x.carga!=null)}
+function catJson(){return JSON.stringify(catalog.map(t=>({id:t.id,nome:t.nome,carga:t.carga})),null,1)}
+function applyRemote(cl,h){
+  catalog=cl;uid=Math.max(1,...cl.map(x=>x.id+1));dirty=false;
+  try{localStorage.setItem(KD,'');localStorage.setItem(KH,h)}catch(e){}
+  saveCat(false);
+  lists.forEach(l=>{const t=catalog.find(x=>x.nome===l.nome);if(t){l.tid=t.id;l.carga=t.carga}else{l.tid=null;l.nome='';l.carga=null}});
+  renderCat();renderLists();
+}
+async function syncRemote(){
+  let cl=null;
+  try{
+    const r=await fetch('api/catalogo?'+Date.now(),{cache:'no-store'});
+    if(r.ok){const j=await r.json();if(j&&j.ok){apiOn=true;apiProt=!!j.protegido;updateSync();if(Array.isArray(j.itens)&&j.itens.length)cl=cleanCat(j.itens)}}
+  }catch(e){}
+  if(!cl||!cl.length){
+    try{
+      const r=await fetch('treinamentos.json?'+Date.now(),{cache:'no-store'});
+      if(!r.ok)return;
+      cl=cleanCat(await r.json());
+    }catch(e){return}   // aberto direto do arquivo ou sem internet: segue com o cadastro local
+  }
+  if(!cl.length)return;
+  const h=JSON.stringify(cl.map(x=>[x.nome,x.carga]));
+  let seen='';try{seen=localStorage.getItem(KH)||''}catch(e){}
+  if(h===JSON.stringify(catalog.map(x=>[x.nome,x.carga]))){ // local já igual ao oficial
+    dirty=false;try{localStorage.setItem(KD,'');localStorage.setItem(KH,h)}catch(e){}updateSync();return}
+  if(h===seen)return;                       // oficial não mudou desde a última visita: mantém o local
+  if(!dirty){applyRemote(cl,h);toast('Cadastro de treinamentos atualizado.');return}
+  if(confirm('O cadastro oficial foi atualizado, mas você tem alterações neste computador que não foram publicadas.\n\nOK = usar o cadastro oficial (descarta as suas alterações)\nCancelar = manter o seu')){applyRemote(cl,h);toast('Cadastro oficial carregado.')}
+  else{try{localStorage.setItem(KH,h)}catch(e){}}
+}
+async function doPublish(manual){
+  if(!apiOn||publishing)return;
+  if(declined&&!manual)return;
+  let senha='';
+  if(apiProt){
+    try{senha=sessionStorage.getItem('senha-edicao')||''}catch(e){}
+    if(!senha){
+      senha=prompt('Senha de edição do cadastro (para publicar para todos):')||'';
+      if(!senha){declined=true;toast('Alterações salvas só neste computador. Use "Publicar para todos" quando quiser.');return}
+    }
+  }
+  declined=false;publishing=true;updateSync();
+  try{
+    const r=await fetch('api/catalogo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({senha,itens:catalog.map(t=>({id:t.id,nome:t.nome,carga:t.carga}))})});
+    if(r.status===401){try{sessionStorage.removeItem('senha-edicao')}catch(e){}declined=true;toast('Senha incorreta. Nada foi publicado.',1)}
+    else if(!r.ok){toast('Não consegui publicar agora. Tente de novo.',1)}
+    else{
+      try{if(senha)sessionStorage.setItem('senha-edicao',senha);localStorage.setItem(KD,'');localStorage.setItem(KH,JSON.stringify(catalog.map(x=>[x.nome,x.carga])))}catch(e){}
+      dirty=false;toast('Publicado para todos!');
+    }
+  }catch(e){toast('Sem conexão. Nada foi publicado.',1)}
+  publishing=false;updateSync();
+}
+async function undoPublish(){
+  if(!apiOn)return;
+  if(!confirm('Desfazer a última publicação? O cadastro de todos volta para a versão anterior.'))return;
+  clearTimeout(pubTimer);
+  let senha='';try{senha=sessionStorage.getItem('senha-edicao')||''}catch(e){}
+  if(apiProt&&!senha){senha=prompt('Senha de edição do cadastro:')||'';if(!senha)return}
+  try{
+    const r=await fetch('api/catalogo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({acao:'restaurar',senha})});
+    if(r.status===404){toast('Não há versão anterior para restaurar.',1);return}
+    if(r.status===401){toast('Senha incorreta.',1);return}
+    if(!r.ok){toast('Não consegui desfazer agora.',1);return}
+    const j=await r.json();const cl=cleanCat(j.itens||[]);
+    if(cl.length){applyRemote(cl,JSON.stringify(cl.map(x=>[x.nome,x.carga])));toast('Última publicação desfeita.')}
+  }catch(e){toast('Sem conexão.',1)}
+}
+async function publishCat(){
+  if(apiOn){clearTimeout(pubTimer);declined=false;return doPublish(true)}
+  const txt=catJson();let ok=false;
+  try{await navigator.clipboard.writeText(txt);ok=true}catch(e){
+    try{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove()}catch(e2){}
+  }
+  window.open('https://github.com/'+REPO+'/edit/main/treinamentos.json','_blank');
+  toast(ok?'Cadastro copiado! No GitHub: Ctrl+A, Ctrl+V e Commit changes.':'Não consegui copiar; use Exportar e envie o arquivo ao GitHub.',!ok);
+}
+function renderCat(){
+  const b=$('catBody');
+  if(!catalog.length){b.innerHTML='<tr><td colspan="4" class="empty">Nenhum treinamento cadastrado. Adicione abaixo.</td></tr>'}
+  else b.innerHTML=catalog.map((t,i)=>`<tr data-id="${t.id}"><td class="n">${i+1}</td>
+    <td><input data-k="nome" value="${esc(t.nome)}" aria-label="Nome do treinamento"></td>
+    <td class="c"><input data-k="carga" inputmode="decimal" value="${fmtNum(t.carga)}" aria-label="Carga horária"></td>
+    <td class="a"><button class="icon danger" title="Excluir" onclick="delTraining(${t.id})">✕</button></td></tr>`).join('');
+  $('cTrain').textContent=catalog.length;
+}
+$('catBody').addEventListener('input',e=>{
+  const tr=e.target.closest('tr[data-id]');if(!tr)return;
+  const t=catalog.find(x=>x.id==tr.dataset.id);if(!t)return;
+  if(e.target.dataset.k==='nome')t.nome=e.target.value;
+  else{const n=parseNum(e.target.value);if(n!=null)t.carga=n}
+  saveCat();refreshSelects();
+});
+$('catBody').addEventListener('change',e=>{ // ao sair do campo: aplica nova carga às listas e normaliza o texto
+  const tr=e.target.closest('tr[data-id]');if(!tr)return;
+  const t=catalog.find(x=>x.id==tr.dataset.id);if(!t)return;
+  if(e.target.dataset.k==='carga'){e.target.value=fmtNum(t.carga);lists.forEach((l,i)=>{if(l.tid===t.id){l.carga=t.carga;setCarga(i)}});recalcAll();save()}
+  else lists.forEach(l=>{if(l.tid===t.id)l.nome=t.nome});
+});
+function addTraining(){
+  const nome=$('newName').value.trim(),c=parseNum($('newCarga').value);
+  if(!nome){toast('Digite o nome do treinamento.',1);$('newName').focus();return}
+  if(c==null||c<=0){toast('Informe a carga horária (ex.: 0,5 ou 4).',1);$('newCarga').focus();return}
+  catalog.push({id:uid++,nome,carga:c});saveCat();renderCat();refreshSelects();
+  $('newName').value='';$('newCarga').value='';$('newName').focus();toast('Treinamento adicionado.');
+}
+$('newCarga').addEventListener('keydown',e=>{if(e.key==='Enter')addTraining()});
+$('newName').addEventListener('keydown',e=>{if(e.key==='Enter')$('newCarga').focus()});
+function delTraining(id){
+  const t=catalog.find(x=>x.id===id);if(!t||!confirm('Excluir "'+t.nome+'" do cadastro?'))return;
+  catalog=catalog.filter(x=>x.id!==id);saveCat();
+  lists.forEach((l,i)=>{if(l.tid===id){l.tid=null;l.nome='';l.carga=null}});
+  renderCat();renderLists();toast('Treinamento excluído.');
+}
+function exportCat(){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(catalog,null,1)],{type:'application/json'}));
+  a.download='treinamentos.json';document.body.appendChild(a);a.click();a.remove();
+}
+$('imp').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const a=JSON.parse(await f.text());
+    if(!Array.isArray(a))throw 0;
+    const cl=a.map((x,i)=>({id:i+1,nome:String(x.nome||'').trim(),carga:parseNum(x.carga)})).filter(x=>x.nome&&x.carga!=null);
+    if(!cl.length)throw 0;
+    if(!confirm('Substituir os '+catalog.length+' treinamentos atuais por '+cl.length+' do arquivo?'))return;
+    catalog=cl;uid=cl.length+1;saveCat();lists.forEach(l=>{l.tid=null;l.nome='';l.carga=null});renderCat();renderLists();toast('Cadastro importado.');
+  }catch(err){toast('Arquivo inválido.',1)}
+});
+
+/* ---------- listas ---------- */
+function newList(){return{tid:null,nome:'',carga:null,inicio:'',manual:false,instrutor:'',extra:'',nomes:'',sid:null}}
+function setQty(n){
+  n=Math.max(1,Math.min(50,n|0||1));$('qty').value=n;
+  if(n===lists.length)return;
+  while(lists.length<n)lists.push(newList());
+  lists.length=n;
+  renderLists();
+}
+$('qty').addEventListener('change',()=>{setQty(parseInt($('qty').value,10))});
+function optsHtml(sel){
+  return '<option value="">— Selecione o treinamento —</option>'+catalog.map(t=>`<option value="${t.id}"${t.id===sel?' selected':''}>${esc(t.nome)} (${fmtCarga(t.carga)})</option>`).join('');
+}
+function refreshSelects(){document.querySelectorAll('.list').forEach((d,i)=>{const s=d.querySelector('[data-f=tid]');s.innerHTML=optsHtml(lists[i].tid)});renderAgenda()}
+function renderLists(){
+  const box=$('lists');
+  box.innerHTML=lists.map((l,i)=>`<div class="list" data-i="${i}">
+    <h3><span>Lista <span class="badge">${i+1}</span><span class="tag" data-f="tag" style="display:none">horário fixo</span></span></h3>
+    <div class="grid">
+      <div class="full"><label>Treinamento</label><select data-f="tid">${optsHtml(l.tid)}</select></div>
+      <div><label>Carga horária (h)</label><input data-f="carga" inputmode="decimal" value="${l.carga==null?'':fmtNum(l.carga)}" placeholder="auto"></div>
+      <div><label>Horário</label><div class="time"><input type="time" data-f="inicio" value="${l.inicio}"><span class="to">às</span><span class="end" data-f="fim">--:--</span></div></div>
+      <div><label>Instrutor</label><input data-f="instrutor" value="${esc(l.instrutor)}" placeholder="Nome do instrutor"></div>
+      <div class="full"><label>Conteúdo adicional</label><textarea data-f="extra" rows="1" placeholder="Opcional">${esc(l.extra)}</textarea></div>
+      <div class="full nomes"><label>Participantes <span class="cnt" data-f="cnt"></span></label>
+        <textarea data-f="nomes" rows="4" placeholder="Um nome por linha. Pode colar do Excel (colunas: Nome, RE, C.Custo, Cargo). Opcional.">${esc(l.nomes)}</textarea>
+        <div class="dig"><button class="small primary" data-f="btnDig" onclick="openDigital(${i})">${l.sid?'Atualizar lista digital':'Abrir para assinatura digital'}</button>${l.sid?`<button class="small" onclick="showTab('digital')">Ver em Presença digital</button><span class="st">✔ lista digital aberta</span>`:''}</div>
+      </div>
+    </div></div>`).join('');
+  lists.forEach((l,i)=>updCnt(i));
+  recalcAll();save();
+}
+function updCnt(i){const d=document.querySelector(`.list[data-i="${i}"] [data-f=cnt]`);if(!d)return;const n=parseNomes(lists[i].nomes).length;d.textContent=n?'('+n+')':''}
+function setCarga(i){const d=document.querySelector(`.list[data-i="${i}"] [data-f=carga]`);if(d&&document.activeElement!==d)d.value=lists[i].carga==null?'':fmtNum(lists[i].carga)}
+function recalcAll(force){
+  const g=$('inicio').value;
+  lists.forEach((l,i)=>{
+    if(force)l.manual=false;
+    if(i===0)l.inicio=g;
+    else if(!l.manual){const f=fim(lists[i-1]);l.inicio=f||''}
+  });
+  lists.forEach((l,i)=>{
+    const d=document.querySelector(`.list[data-i="${i}"]`);if(!d)return;
+    const t=d.querySelector('[data-f=inicio]');if(document.activeElement!==t)t.value=l.inicio;
+    d.querySelector('[data-f=fim]').textContent=fim(l)||'--:--';
+    d.querySelector('[data-f=tag]').style.display=(i>0&&l.manual)?'':'none';
+    d.classList.remove('err');
+  });
+  renderAgenda();
+}
+function renderAgenda(){
+  $('cLists').textContent=lists.length;
+  $('agenda').innerHTML=lists.map((l,i)=>{
+    const f=fim(l);return `<div class="ag"><span>${i+1}</span> ${esc(l.nome||'—')} · ${l.inicio&&f?l.inicio+'–'+f:'sem horário'}</div>`}).join('');
+}
+$('lists').addEventListener('input',e=>{
+  const d=e.target.closest('.list');if(!d)return;const i=+d.dataset.i,l=lists[i],k=e.target.dataset.f;
+  if(k==='carga'){const n=parseNum(e.target.value);l.carga=n;recalcAll()}
+  else if(k==='inicio'){if(i===0){$('inicio').value=e.target.value}else l.manual=true;l.inicio=e.target.value;recalcAll()}
+  else if(k==='instrutor'||k==='extra')l[k]=e.target.value;
+  else if(k==='nomes'){l.nomes=e.target.value;updCnt(i)}
+  save();
+});
+$('lists').addEventListener('change',e=>{
+  const d=e.target.closest('.list');if(!d||e.target.dataset.f!=='tid')return;
+  const i=+d.dataset.i,l=lists[i],t=catalog.find(x=>x.id==e.target.value);
+  l.tid=t?t.id:null;l.nome=t?t.nome:'';l.carga=t?t.carga:null;setCarga(i);recalcAll();save();
+});
+$('inicio').addEventListener('input',()=>{recalcAll();save()});
+function copyFirst(k){lists.forEach(l=>l[k]=lists[0][k]);document.querySelectorAll('.list').forEach((d,i)=>d.querySelector('[data-f='+k+']').value=lists[i][k]);save();toast('Copiado para todas as listas.')}
+function clearAll(){
+  if(!confirm('Limpar todas as listas (treinamentos, horários, instrutores)? O cadastro de treinamentos é mantido.'))return;
+  ['data','turma','local'].forEach(i=>$(i).value='');$('inicio').value='08:00';
+  lists=[newList()];$('qty').value=1;renderLists();updateChips();
+}
+function updateChips(){$('cDate').textContent=$('data').value?fmtDate($('data').value):'sem data'}
+['data','turma','local'].forEach(id=>$(id).addEventListener('input',()=>{updateChips();save()}));
+
+/* ---------- salvar / carregar estado ---------- */
+function save(){try{localStorage.setItem(KS,JSON.stringify({data:$('data').value,turma:$('turma').value,local:$('local').value,inicio:$('inicio').value,lists}))}catch(e){}}
+function load(){
+  loadCat();renderCat();
+  try{
+    const s=JSON.parse(localStorage.getItem(KS)||'null');
+    if(s&&Array.isArray(s.lists)&&s.lists.length){
+      $('data').value=s.data||'';$('turma').value=s.turma||'';$('local').value=s.local||'';$('inicio').value=s.inicio||'08:00';
+      lists=s.lists.map(l=>({...newList(),...l}));
+      lists.forEach(l=>{if(l.tid!=null){const t=catalog.find(x=>x.id===l.tid);if(!t){l.tid=null;l.nome='';l.carga=null}else l.nome=t.nome}});
+      $('qty').value=lists.length;renderLists();updateChips();return;
+    }
+  }catch(e){}
+  lists=[newList()];renderLists();updateChips();
+}
+
+/* ---------- PDF ---------- */
+const POS={
+  treinamento:{x:127,y:136.3,max:552},data:{x:90,y:152.8,max:420},turma:{x:473,y:152.8,max:553},
+  horario:{x:106,y:169.2,max:420},carga:{x:513,y:169.2,max:554},local:{x:96,y:185.7,max:552},
+  instrutor:{x:115,y:202.1,max:552},extra:{x:162,y:218.5,max:552}
+};
+const ROW0=245.8,RH=17.52,NROWS=30;
+function parseNomes(s){
+  const r=String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(x=>{
+    const c=(x.includes('\t')?x.split('\t'):x.includes(';')?x.split(';'):[x]).map(y=>y.trim());
+    return{nome:c[0]||'',re:c[1]||'',cc:c[2]||'',cargo:c[3]||''};
+  }).filter(p=>p.nome);
+  if(r.length&&/^nome$/i.test(r[0].nome))r.shift();
+  return r;
+}
+function valsDaLista(L){
+  const f=fim(L);
+  return{treinamento:L.nome,data:fmtDate($('data').value),turma:$('turma').value.trim(),horario:L.inicio&&f?`${L.inicio} às ${f}`:'',carga:fmtCarga(L.carga),local:$('local').value.trim(),instrutor:L.instrutor.trim(),extra:L.extra.trim()};
+}
+function pngBytes(d){const s=atob(String(d).split(',')[1]||''),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
+// items: [{vals:{treinamento,data,turma,horario,carga,local,instrutor,extra}, pessoas:[{nome,re,cc,cargo,img?}]}]
+async function buildPdf(items){
+  const{PDFDocument,StandardFonts,rgb}=PDFLib;
+  const out=await PDFDocument.create();
+  const bold=await out.embedFont(StandardFonts.HelveticaBold),reg=await out.embedFont(StandardFonts.Helvetica);
+  const src=await PDFDocument.load(tplBytes);
+  const branco=rgb(1,1,1),preto=rgb(0,0,0);
+  const ajusta=(font,t,w,size)=>{while(size>5&&font.widthOfTextAtSize(t,size)>w)size-=.25;return size};
+  for(const it of items){
+    const ps=it.pessoas||[],paginas=Math.max(1,Math.ceil(ps.length/NROWS));
+    for(let p=0;p<paginas;p++){
+      const[pg]=await out.copyPages(src,[0]);out.addPage(pg);const H=pg.getHeight();
+      for(const k in POS){
+        const t=(it.vals[k]||'').replace(/[\r\n]+/g,' ');if(!t)continue;
+        const q=POS[k];const size=ajusta(bold,t,q.max-q.x,8.5);
+        pg.drawText(t,{x:q.x,y:H-q.y,size,font:bold,color:preto});
+      }
+      if(paginas>1){ // "Página n de m"
+        pg.drawRectangle({x:526,y:H-112,width:36,height:11,color:branco});
+        pg.drawText(`${p+1} de ${paginas}`,{x:528.7,y:H-108.3,size:8,font:bold,color:preto});
+      }
+      for(let k=0;k<NROWS;k++){
+        const idx=p*NROWS+k,top=ROW0+k*RH;
+        if(p>0){
+          pg.drawRectangle({x:40.5,y:H-(top+RH-1.2),width:15,height:RH-2.4,color:branco});
+          if(idx<ps.length){const n=String(idx+1);pg.drawText(n,{x:48.6-reg.widthOfTextAtSize(n,8)/2,y:H-(top+10.4),size:8,font:reg,color:preto})}
+        }
+        const pe=ps[idx];if(!pe)continue;
+        const base=H-(top+10.4);
+        const campos=[[pe.nome,62,198],[pe.re,203,240],[pe.cc,244,291],[pe.cargo,295,432]];
+        for(const[t0,x0,x1]of campos){
+          const t=String(t0||'').replace(/[\r\n\t]+/g,' ');if(!t)continue;
+          pg.drawText(t,{x:x0,y:base,size:ajusta(reg,t,x1-x0,8),font:reg,color:preto});
+        }
+        if(pe.img){
+          try{
+            const im=await out.embedPng(pngBytes(pe.img));
+            const bw=115,bh=15,s=Math.min(bw/im.width,bh/im.height),w=im.width*s,h=im.height*s;
+            pg.drawImage(im,{x:437+(bw-w)/2,y:H-(top+1.3+bh)+(bh-h)/2,width:w,height:h});
+          }catch(e){}
+        }
+      }
+    }
+  }
+  return out.save();
+}
+async function makePdf(){return buildPdf(lists.map(L=>({vals:valsDaLista(L),pessoas:parseNomes(L.nomes)})))}
+async function run(preview){
+  const bad=lists.map((l,i)=>l.tid==null&&!l.nome?i:-1).filter(i=>i>=0);
+  if(bad.length){
+    bad.forEach(i=>document.querySelector(`.list[data-i="${i}"]`).classList.add('err'));
+    document.querySelector(`.list[data-i="${bad[0]}"]`).scrollIntoView({block:'center'});
+    toast('Selecione o treinamento da(s) lista(s): '+bad.map(i=>i+1).join(', ')+'.',1);return;
+  }
+  const btn=$('dl');btn.disabled=true;toast('Gerando PDF...');
+  try{
+    const bytes=await makePdf();const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+    if(preview){const f=$('prev');f.src=url;f.style.display='block';f.scrollIntoView({behavior:'smooth'});toast('Pré-visualização abaixo.')}
+    else{
+      const a=document.createElement('a');a.href=url;
+      a.download='Listas de presenca'+($('data').value?' '+fmtDate($('data').value).replace(/\//g,'-'):'')+'.pdf';
+      document.body.appendChild(a);a.click();a.remove();toast('PDF gerado com '+lists.length+' lista(s).');
+    }
+  }catch(e){toast('Erro ao gerar o PDF: '+e.message,1)}
+  btn.disabled=false;
+}
+/* ---------- abas ---------- */
+let aba='gerar',tSess=null;
+function showTab(t){
+  aba=t;
+  $('v-gerar').style.display=t==='gerar'?'':'none';$('bar').style.display=t==='gerar'?'':'none';
+  $('v-digital').style.display=t==='digital'?'':'none';
+  $('tabG').classList.toggle('on',t==='gerar');$('tabD').classList.toggle('on',t==='digital');
+  clearInterval(tSess);
+  if(t==='digital'){initDigital();tSess=setInterval(()=>{if(pin&&!document.hidden)loadSessions(true)},10000)}
+  window.scrollTo({top:0});
+}
+/* ---------- PIN e chamadas à gestão ---------- */
+let pin='';try{pin=sessionStorage.getItem('pin-gestao')||''}catch(e){}
+class ErroGestao extends Error{constructor(st,msg){super(msg);this.st=st}}
+async function gestao(acao,extra){
+  let r,j={};
+  try{
+    r=await fetch('api/gestao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin,acao,...extra})});
+    j=await r.json().catch(()=>({}));
+  }catch(e){throw new ErroGestao(0,'Sem conexão com o servidor.')}
+  if(r.status===401){pin='';try{sessionStorage.removeItem('pin-gestao')}catch(e){}}
+  if(!r.ok)throw new ErroGestao(r.status,r.status===404&&!j.erro?'O servidor da presença digital não está disponível aqui.':(j.erro||'Falha ao falar com o servidor.'));
+  return j;
+}
+async function validarPin(p){
+  const antes=pin;pin=p;
+  try{await gestao('verificar');try{sessionStorage.setItem('pin-gestao',p)}catch(e){}return''}
+  catch(e){pin=antes&&e.st!==401?antes:'';return e.message||'Não foi possível validar.'}
+}
+async function ensurePin(){
+  if(pin)return true;
+  const p=prompt('PIN da gestão (para criar/atualizar a lista digital):');if(!p)return false;
+  const m=await validarPin(p);if(m){toast(m,1);return false}return true;
+}
+async function entrarPin(){
+  const m=await validarPin($('pinIn').value.trim());$('pinIn').value='';
+  if(m){$('gateMsg').textContent=m;return}
+  $('gateMsg').textContent='';initDigital();
+}
+function sairPin(){pin='';try{sessionStorage.removeItem('pin-gestao')}catch(e){}initDigital()}
+$('pinIn').addEventListener('keydown',e=>{if(e.key==='Enter')entrarPin()});
+function initDigital(){
+  $('gate').style.display=pin?'none':'';$('painel').style.display=pin?'':'none';$('sairBtn').style.display=pin?'':'none';
+  if(pin)loadSessions();
+}
+/* ---------- abrir lista digital a partir de uma lista ---------- */
+function metaDeLista(L){const v=valsDaLista(L);return{treinamento:v.treinamento,data:$('data').value,turma:v.turma,local:v.local,horario:v.horario,carga:v.carga,instrutor:v.instrutor,extra:v.extra}}
+async function openDigital(i){
+  const L=lists[i];
+  if(L.tid==null&&!L.nome){toast('Selecione o treinamento desta lista primeiro.',1);return}
+  const ps=parseNomes(L.nomes);
+  if(!ps.length){toast('Cole os nomes dos participantes desta lista.',1);return}
+  if(ps.length>200){toast('O limite é de 200 participantes por lista digital.',1);return}
+  if(!await ensurePin())return;
+  const b=document.querySelector(`.list[data-i="${i}"] [data-f=btnDig]`);if(b)b.disabled=true;
+  try{
+    const meta=metaDeLista(L);
+    if(L.sid){
+      try{await gestao('salvar',{id:L.sid,meta,participantes:ps});toast('Lista digital atualizada.')}
+      catch(e){if(e.st===404){L.sid=null}else throw e}
+    }
+    if(!L.sid){const j=await gestao('criar',{meta,participantes:ps});L.sid=j.id;toast('Lista digital aberta para assinatura!')}
+    save();renderLists();showTab('digital');
+  }catch(e){toast(e.message,1);if(b)b.disabled=false}
+}
+/* ---------- painel de presença digital ---------- */
+const linkSess=id=>new URL('assinar.html?s='+id,location.href).href;
+let abertas={};
+async function loadSessions(quieto){
+  if(!pin)return;
+  try{
+    const j=await gestao('listar');
+    const box=$('sessBox');
+    $('tabDn').textContent=j.listas.filter(x=>!x.meta.encerrada).length||'';
+    if(!j.listas.length){box.innerHTML='<p class="empty">Nenhuma lista digital ainda.</p>';return}
+    box.innerHTML=j.listas.map(s=>{
+      const m=s.meta,pc=s.total?Math.round(s.assinaram/s.total*100):0;
+      return `<div class="sess${m.encerrada?' enc':''}" data-id="${s.id}">
+        <h3>${esc(m.treinamento||'Treinamento')} ${m.encerrada?'<span class="tag">encerrada</span>':''}</h3>
+        <div class="sub">${[m.data?fmtDate(m.data):'',m.horario,m.turma?'Turma '+m.turma:'',m.local].filter(Boolean).map(esc).join(' · ')}</div>
+        <b>${s.assinaram} de ${s.total} assinaram</b><div class="prog"><i style="width:${pc}%"></i></div>
+        <div class="acts">
+          <button class="small primary" onclick="window.open(linkSess('${s.id}'),'_blank')">Abrir para assinar (tablet)</button>
+          <button class="small" onclick="mostrarQR('${s.id}')">QR code</button>
+          <button class="small" onclick="copiarLink('${s.id}')">Copiar link</button>
+          <button class="small" onclick="verPart('${s.id}')">Participantes</button>
+          <button class="small" onclick="pdfSessao('${s.id}')">PDF assinado</button>
+          <button class="small" onclick="encerrarSess('${s.id}',${!m.encerrada})">${m.encerrada?'Reabrir':'Encerrar'}</button>
+          <button class="small danger" onclick="excluirSess('${s.id}')">Excluir</button>
+        </div><div class="pl" data-pl style="display:none"></div></div>`}).join('');
+    Object.keys(abertas).forEach(id=>{if(document.querySelector(`.sess[data-id="${id}"]`))verPart(id,true)});
+  }catch(e){if(!quieto)toast(e.message,1);if(e.st===401)initDigital()}
+}
+async function verPart(id,manter){
+  const el=document.querySelector(`.sess[data-id="${id}"] [data-pl]`);if(!el)return;
+  if(!manter&&abertas[id]){delete abertas[id];el.style.display='none';return}
+  try{
+    const j=await gestao('abrir',{id});abertas[id]=1;
+    el.style.display='';
+    el.innerHTML='<table>'+j.participantes.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.nome)}${p.extra?' <span class="tag">incluído na hora</span>':''}</td><td>${p.assinatura?`<img alt="assinatura" src="${p.assinatura.img}"> <button class="small" onclick="zerarAss('${id}','${p.id}')">Apagar assinatura</button>`:'<span class="hint">aguardando</span>'}</td></tr>`).join('')+'</table>';
+  }catch(e){toast(e.message,1)}
+}
+async function zerarAss(id,pid){
+  if(!confirm('Apagar esta assinatura? A pessoa poderá assinar de novo.'))return;
+  try{await gestao('zerar',{id,pid});await loadSessions(true);toast('Assinatura apagada.')}catch(e){toast(e.message,1)}
+}
+async function encerrarSess(id,v){
+  if(v&&!confirm('Encerrar esta lista? Ninguém mais conseguirá assinar (você pode reabrir depois).'))return;
+  try{await gestao('encerrar',{id,valor:v});await loadSessions(true)}catch(e){toast(e.message,1)}
+}
+async function excluirSess(id){
+  if(!confirm('Excluir esta lista digital e TODAS as assinaturas dela? Baixe o PDF assinado antes. Não dá para desfazer.'))return;
+  try{await gestao('excluir',{id});delete abertas[id];lists.forEach(l=>{if(l.sid===id)l.sid=null});save();renderLists();await loadSessions(true);toast('Lista excluída.')}catch(e){toast(e.message,1)}
+}
+async function copiarLink(id){
+  const t=linkSess(id);let ok=false;
+  try{await navigator.clipboard.writeText(t);ok=true}catch(e){try{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();ok=document.execCommand('copy');a.remove()}catch(e2){}}
+  toast(ok?'Link copiado.':t,!ok);
+}
+function mostrarQR(id){
+  const t=linkSess(id),q=makeQR(t),c=$('qrC'),z=8,quiet=4,n=q.n,px=(n+quiet*2)*z;
+  c.width=px;c.height=px;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,px,px);x.fillStyle='#000';
+  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.dark(r,k))x.fillRect((k+quiet)*z,(r+quiet)*z,z,z);
+  const s=document.querySelector(`.sess[data-id="${id}"] h3`);
+  $('qrT').textContent=s?s.firstChild.textContent.trim():'Assinar presença';$('qrL').textContent=t;$('qrbox').style.display='flex';
+}
+function fecharQR(){$('qrbox').style.display='none'}
+async function pdfSessao(id){
+  try{
+    toast('Gerando PDF assinado...');
+    const j=await gestao('abrir',{id}),m=j.meta;
+    const items=[{vals:{treinamento:m.treinamento,data:m.data?fmtDate(m.data):'',turma:m.turma,horario:m.horario,carga:m.carga,local:m.local,instrutor:m.instrutor,extra:m.extra},
+      pessoas:j.participantes.map(p=>({nome:p.nome,re:p.re,cc:p.cc,cargo:p.cargo,img:p.assinatura&&p.assinatura.img}))}];
+    const bytes=await buildPdf(items),a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+    a.download=('Lista assinada - '+(m.treinamento||'treinamento')+(m.data?' '+fmtDate(m.data).replace(/\//g,'-'):'')+'.pdf').replace(/[\\\/:*?"<>|]/g,'-');
+    document.body.appendChild(a);a.click();a.remove();toast('PDF assinado gerado.');
+  }catch(e){toast(e.message||'Erro ao gerar o PDF.',1)}
+}
+load();updateSync();syncRemote();
+</script>
+</body>
+</html>
