@@ -1,8 +1,10 @@
 // Cadastro de treinamentos compartilhado (Vercel Function + Upstash Redis via REST).
 // GET  /api/catalogo            -> { ok:true, itens:[...]|null }
-// POST /api/catalogo {senha,itens} -> grava (exige EDIT_PASSWORD)
+// POST /api/catalogo {itens}               -> grava; se EDIT_PASSWORD existir, exige {senha}
+// POST /api/catalogo {acao:'restaurar'}      -> desfaz a última publicação (guarda 10 versões)
 const crypto = require('crypto');
 const KEY = 'catalogo-treinamentos';
+const HIST = 'catalogo-treinamentos-historico';
 const espera = ms => new Promise(r => setTimeout(r, ms));
 
 async function redis(cmd) {
@@ -38,17 +40,31 @@ module.exports = async (req, res) => {
       const v = await redis(['GET', KEY]);
       let itens = null;
       try { itens = v ? JSON.parse(v) : null; } catch (e) {}
-      return res.status(200).json({ ok: true, itens });
+      return res.status(200).json({ ok: true, itens, protegido: !!process.env.EDIT_PASSWORD });
     }
     if (req.method === 'POST') {
       const b = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const esperado = process.env.EDIT_PASSWORD || '';
-      const a = Buffer.from(String(b.senha || '')), e = Buffer.from(esperado);
-      const ok = esperado && a.length === e.length && crypto.timingSafeEqual(a, e);
-      if (!ok) { await espera(700); return res.status(401).json({ erro: 'Senha incorreta' }); }
+      if (esperado) {
+        const a = Buffer.from(String(b.senha || '')), e = Buffer.from(esperado);
+        const ok = a.length === e.length && crypto.timingSafeEqual(a, e);
+        if (!ok) { await espera(700); return res.status(401).json({ erro: 'Senha incorreta' }); }
+      }
+      if (b.acao === 'restaurar') {
+        const anterior = await redis(['LPOP', HIST]);
+        if (!anterior) return res.status(404).json({ erro: 'Não há versão anterior' });
+        await redis(['SET', KEY, anterior]);
+        return res.status(200).json({ ok: true, itens: JSON.parse(anterior) });
+      }
       const itens = validar(b.itens);
       if (!itens) return res.status(400).json({ erro: 'Dados inválidos' });
-      await redis(['SET', KEY, JSON.stringify(itens)]);
+      const novo = JSON.stringify(itens);
+      const atual = await redis(['GET', KEY]);
+      if (atual && atual !== novo) {
+        await redis(['LPUSH', HIST, atual]);
+        await redis(['LTRIM', HIST, 0, 9]);
+      }
+      await redis(['SET', KEY, novo]);
       return res.status(200).json({ ok: true });
     }
     res.setHeader('Allow', 'GET, POST');
