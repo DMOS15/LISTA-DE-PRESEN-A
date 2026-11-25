@@ -113,7 +113,7 @@ $('busca').oninput=desenhar;
 function comecar(pid,nome,ex){alvo=pid;extra=ex;nomeExtra=nome;$('quem').textContent=nome;limpar();$('erroAss').textContent='';ir('tela-assinar');ajustar()}
 $('outro').onclick=()=>{$('novoNome').value='';$('outroErro').textContent='';ir('tela-outro');$('novoNome').focus()};
 $('outroVoltar').onclick=()=>ir('tela-lista');
-$('outroSeguir').onclick=()=>{const n=$('novoNome').value.trim().replace(/\s+/g,' ');if(n.length<3){$('outroErro').textContent='Digite o nome completo.';return}comecar(null,n,true)};
+$('outroSeguir').onclick=()=>{const n=$('novoNome').value.trim().replace(/\s+/g,' ');if(n.split(' ').filter(w=>w.length>=2).length<2){$('outroErro').textContent='Digite nome e sobrenome.';return}comecar(null,n.toUpperCase(),true)};
 $('voltar').onclick=()=>{ir(extra?'tela-outro':'tela-lista')};
 
 /* ---- quadro de assinatura ---- */

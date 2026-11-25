@@ -99,6 +99,24 @@ td.c{width:170px}td.a{width:70px;text-align:right}
 .pl table{font-size:13px}
 .pl td{padding:5px 8px}
 .pl img{height:26px;background:#fff;border:1px solid var(--latte);border-radius:3px;vertical-align:middle}
+/* participantes em grade (estilo Excel) */
+.pgw{max-height:360px;overflow:auto;border:1px solid var(--mocha);border-radius:4px;background:#fff}
+table.pg{border-collapse:collapse;width:100%;min-width:620px;font-size:13px}
+table.pg th{position:sticky;top:0;z-index:1;background:var(--latte);border:1px solid var(--mocha);padding:5px 6px;font-size:12px}
+table.pg td{border:1px solid #c9bfa9;padding:0}
+table.pg td.n{width:34px;text-align:center;background:var(--crema);font-size:12px}
+table.pg td.ck,table.pg th.ck{width:34px;text-align:center}
+table.pg td.ck input,table.pg th.ck input{width:auto;margin:0}
+table.pg td.a{width:40px;text-align:center}
+table.pg td input[data-c]:not([type=checkbox]){border:0;border-radius:0;background:transparent;padding:6px 7px;font-size:13px}
+table.pg td input[data-c=nome]{text-transform:uppercase;min-width:200px}
+table.pg td input[data-c]:focus{background:#fffbe8;outline:2px solid var(--mocha);outline-offset:-2px}
+table.pg tr.inv td{background:#fbe3dc}
+table.pg tr.inv td input[data-c=nome]{color:var(--err);font-weight:700}
+table.pg tr.off td:not(.ck):not(.a){opacity:.45}
+table.pg button.icon{padding:2px 7px;border:0;background:transparent;font-size:13px}
+.pgt{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.tw.s{height:240px}
 #qrbox{position:fixed;inset:0;background:rgba(63,58,49,.6);z-index:50;display:none;align-items:center;justify-content:center;padding:16px}
 #qrbox .in{background:var(--flat);border-radius:10px;padding:22px;max-width:420px;width:100%;text-align:center}
 #qrbox canvas{width:100%;max-width:340px;image-rendering:pixelated}
@@ -109,14 +127,43 @@ td.c{width:170px}td.a{width:70px;text-align:right}
 <header>
   <img id="logo" alt="Keurig Dr Pepper — Coffee Operating Unit">
   <div class="t"><h1>Gerador de Lista de Presença</h1><p>Registro de Treinamento · FRM-01-032</p></div>
-  <div class="chips"><span class="chip"><b id="cLists">0</b> listas</span><span class="chip"><b id="cDate">—</b></span><span class="chip"><b id="cTrain">0</b> treinamentos cadastrados</span></div>
+  <div class="chips"><span class="chip"><b id="cLists">0</b> listas</span><span class="chip"><b id="cDate">—</b></span><span class="chip"><b id="cTrain">0</b> treinamentos</span><span class="chip"><b id="cInstr">0</b> instrutores</span></div>
 </header>
-<nav class="tabs"><button id="tabG" class="on" onclick="showTab('gerar')">Gerar listas</button><button id="tabD" onclick="showTab('digital')">Presença digital<span class="dot" id="tabDn"></span></button></nav>
+<nav class="tabs"><button id="tabG" class="on" onclick="showTab('gerar')">Gerar listas</button><button id="tabC" onclick="showTab('cad')">Cadastros</button><button id="tabD" onclick="showTab('digital')">Presença digital<span class="dot" id="tabDn"></span></button></nav>
 
 <main>
 <div id="v-gerar">
+<section class="card" id="s2">
+  <div class="sh"><span class="num">1</span><h2>Dados do dia</h2></div>
+  <div class="grid">
+    <div><label for="data">Data</label><input type="date" id="data"></div>
+    <div><label for="inicio">Início da 1ª lista</label><input type="time" id="inicio" value="08:00"></div>
+    <div><label for="turma">Turma</label><input id="turma" placeholder="Ex.: A"></div>
+    <div><label for="local">Local</label><input id="local" placeholder="Ex.: Sala de treinamento"></div>
+  </div>
+  <p class="hint">Data, turma e local valem para todas as listas. Os horários das listas seguintes são calculados a partir do início e da carga horária de cada treinamento.</p>
+</section>
+
+<section class="card" id="s3">
+  <div class="sh"><span class="num">2</span><h2>Listas de presença</h2>
+    <label for="qty" style="margin:0">Quantidade</label>
+    <input type="number" id="qty" min="1" max="50" value="1" style="width:80px">
+  </div>
+  <div class="tools">
+    <button class="small" onclick="copyFirst('instrutor')">Copiar instrutor da lista 1 para todas</button>
+    <button class="small" onclick="copyFirst('pessoas')">Copiar participantes da lista 1 para todas</button>
+    <button class="small" onclick="copyFirst('extra')">Copiar conteúdo adicional da lista 1 para todas</button>
+    <button class="small" onclick="recalcAll(true)">Recalcular horários em sequência</button>
+  </div>
+  <div id="lists"></div>
+  <div class="agenda" id="agenda"></div>
+</section>
+
+<iframe id="prev" title="Pré-visualização"></iframe>
+</div>
+<div id="v-cad" style="display:none">
 <section class="card" id="s1">
-  <div class="sh"><span class="num">1</span><h2>Treinamentos cadastrados</h2>
+  <div class="sh"><span class="num">1</span><h2>Treinamentos e carga horária</h2>
     <span class="chip" id="syncChip">Cadastro oficial</span>
     <button class="small primary" onclick="publishCat()" title="Publica o cadastro para todos">Publicar para todos</button>
     <button class="small" id="undoBtn" onclick="undoPublish()" style="display:none" title="Volta o cadastro de todos para a versão anterior">Desfazer última publicação</button>
@@ -131,32 +178,18 @@ td.c{width:170px}td.a{width:70px;text-align:right}
   <p class="hint">Todos que abrirem o site recebem o <b>cadastro oficial</b>. Edite o nome ou a carga direto na tabela: a mudança vale neste computador na hora. As mudanças são publicadas sozinhas para todos poucos segundos depois (ou use <b>Publicar para todos</b>). Publicou errado? Use <b>Desfazer última publicação</b>. Carga em horas: 0,5 = 30 min · 1,5 = 1h30.</p>
 </section>
 
-<section class="card" id="s2">
-  <div class="sh"><span class="num">2</span><h2>Dados do dia</h2></div>
-  <div class="grid">
-    <div><label for="data">Data</label><input type="date" id="data"></div>
-    <div><label for="inicio">Início da 1ª lista</label><input type="time" id="inicio" value="08:00"></div>
-    <div><label for="turma">Turma</label><input id="turma" placeholder="Ex.: A"></div>
-    <div><label for="local">Local</label><input id="local" placeholder="Ex.: Sala de treinamento"></div>
+<section class="card" id="s4">
+  <div class="sh"><span class="num">2</span><h2>Instrutores</h2>
+    <span class="chip" id="instChip">Cadastro oficial</span>
+    <button class="small primary" onclick="publishInstr(true)" title="Publica o cadastro para todos">Publicar para todos</button></div>
+  <div class="tw s"><table><thead><tr><th>#</th><th>Nome do instrutor</th><th></th></tr></thead><tbody id="instBody"></tbody></table></div>
+  <div class="add">
+    <input class="nm" id="newInst" placeholder="Nome do novo instrutor" maxlength="80">
+    <button class="primary" onclick="addInstr()">+ Adicionar</button>
   </div>
-  <p class="hint">Data, turma e local valem para todas as listas. Os horários das listas seguintes são calculados a partir do início e da carga horária de cada treinamento.</p>
+  <p class="hint">Os instrutores cadastrados aparecem para seleção em cada lista (sem precisar digitar). Edite o nome direto na tabela, adicione ou exclua. As mudanças são publicadas sozinhas para todos poucos segundos depois.</p>
 </section>
 
-<section class="card" id="s3">
-  <div class="sh"><span class="num">3</span><h2>Listas de presença</h2>
-    <label for="qty" style="margin:0">Quantidade</label>
-    <input type="number" id="qty" min="1" max="50" value="1" style="width:80px">
-  </div>
-  <div class="tools">
-    <button class="small" onclick="copyFirst('instrutor')">Instrutor do 1º em todos</button>
-    <button class="small" onclick="copyFirst('extra')">Conteúdo adicional do 1º em todos</button>
-    <button class="small" onclick="recalcAll(true)">Recalcular horários em sequência</button>
-  </div>
-  <div id="lists"></div>
-  <div class="agenda" id="agenda"></div>
-</section>
-
-<iframe id="prev" title="Pré-visualização"></iframe>
 </div>
 <div id="v-digital" style="display:none">
 <section class="card">
@@ -170,7 +203,7 @@ td.c{width:170px}td.a{width:70px;text-align:right}
     <p class="hint" id="gateMsg"></p>
   </div>
   <div id="painel" style="display:none">
-    <p class="hint" style="margin:0 0 12px">Para criar uma lista digital, cadastre os nomes na lista (aba <b>Gerar listas</b>) e clique em <b>Abrir para assinatura digital</b>. Quem assina usa o link ou o QR code, sem PIN.</p>
+    <p class="hint" style="margin:0 0 12px">Para criar uma lista digital, cadastre os participantes na lista (aba <b>Gerar listas</b>) e clique em <b>Abrir para assinatura digital</b>. Quem assina usa o link ou o QR code, sem PIN.</p>
     <div id="sessBox"></div>
   </div>
 </section>
@@ -194,6 +227,7 @@ const tplBytes=(b=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.l
 const $=id=>document.getElementById(id);
 const KC='lista-presenca-catalogo-v2',KS='lista-presenca-estado-v2';
 let catalog=[],lists=[];   // lists: {tid,nome,carga,inicio,manual,instrutor,extra}
+let instrs=[],iuid=1,iDirty=false,iApi=false,iProt=false,iTimer=null,iPub=false;
 let uid=1,dirty=false,apiOn=false,apiProt=false,pubTimer=null,declined=false,publishing=false;
 const REPO='DMOS15/LISTA-DE-PRESEN-A',KD='lista-presenca-sujo-v2',KH='lista-presenca-hash-v2';
 
@@ -353,8 +387,133 @@ $('imp').addEventListener('change',async e=>{
   }catch(err){toast('Arquivo inválido.',1)}
 });
 
+/* ---------- instrutores ---------- */
+const KI='lista-presenca-instrutores-v1',KID='lista-presenca-instrutores-sujo-v1';
+const normNome=x=>String(x==null?'':x).replace(/\s+/g,' ').trim().toLocaleUpperCase('pt-BR');
+const nomeOk=x=>normNome(x).split(' ').filter(w=>w.length>=2).length>=2;
+function loadInstr(){
+  try{iDirty=!!localStorage.getItem(KID)}catch(e){}
+  try{const a=JSON.parse(localStorage.getItem(KI)||'null');if(Array.isArray(a)){instrs=a.filter(x=>x&&x.nome);iuid=Math.max(1,...instrs.map(x=>x.id+1))}}catch(e){}
+}
+function saveInstr(mark){
+  if(mark!==false){iDirty=true;try{localStorage.setItem(KID,'1')}catch(e){}}
+  try{localStorage.setItem(KI,JSON.stringify(instrs))}catch(e){}
+  updInstSync();
+  if(mark!==false&&iApi){clearTimeout(iTimer);iTimer=setTimeout(()=>publishInstr(false),1500)}
+}
+function updInstSync(){const c=$('instChip');if(!c)return;c.textContent=!iApi?'Somente neste computador':iPub?'Publicando...':iDirty?'Alterações não publicadas':'Cadastro oficial';c.className='chip'+(iApi&&(iDirty||iPub)?' warn':'')}
+function instrOpts(l){
+  const sorted=[...instrs].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  let h='<option value="">'+(instrs.length?'— Selecione o instrutor —':'— Cadastre instrutores na aba Cadastros —')+'</option>';
+  h+=sorted.map(x=>`<option value="${x.id}"${x.id===l.iid?' selected':''}>${esc(x.nome)}</option>`).join('');
+  if(l.instrutor&&l.iid==null)h+=`<option value="L" selected>${esc(l.instrutor)} (não cadastrado)</option>`;
+  return h;
+}
+function refreshInstrSelects(){document.querySelectorAll('.list').forEach((d,i)=>{const s=d.querySelector('[data-f=instr]');if(s&&lists[i])s.innerHTML=instrOpts(lists[i])})}
+function reconcileInstr(){
+  lists.forEach(l=>{
+    if(l.iid!=null){const x=instrs.find(y=>y.id===l.iid);if(x)l.instrutor=x.nome;else l.iid=null}
+    else if(l.instrutor){const x=instrs.find(y=>y.nome.toLowerCase()===String(l.instrutor).trim().toLowerCase());if(x){l.iid=x.id;l.instrutor=x.nome}}
+  });
+}
+function renderInstr(){
+  const b=$('instBody');
+  b.innerHTML=instrs.length?instrs.map((t,i)=>`<tr data-id="${t.id}"><td class="n">${i+1}</td><td><input data-k="nome" value="${esc(t.nome)}" maxlength="80" aria-label="Nome do instrutor"></td><td class="a"><button class="icon danger" title="Excluir" onclick="delInstr(${t.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">Nenhum instrutor cadastrado. Adicione abaixo.</td></tr>';
+  $('cInstr').textContent=instrs.length;updInstSync();
+}
+$('instBody').addEventListener('input',e=>{
+  const tr=e.target.closest('tr[data-id]');if(!tr)return;
+  const t=instrs.find(x=>x.id==tr.dataset.id);if(!t)return;
+  t.nome=e.target.value;lists.forEach(l=>{if(l.iid===t.id)l.instrutor=t.nome});saveInstr();save();refreshInstrSelects();
+});
+$('instBody').addEventListener('change',e=>{ // ao sair do campo: tira espaços e não deixa ficar vazio
+  const tr=e.target.closest('tr[data-id]');if(!tr)return;
+  const t=instrs.find(x=>x.id==tr.dataset.id);if(!t)return;
+  t.nome=t.nome.replace(/\s+/g,' ').trim();
+  if(!t.nome){toast('O nome do instrutor não pode ficar vazio. Use ✕ para excluir.',1);t.nome='INSTRUTOR '+t.id}
+  e.target.value=t.nome;lists.forEach(l=>{if(l.iid===t.id)l.instrutor=t.nome});saveInstr();save();refreshInstrSelects();
+});
+function addInstr(){
+  const nome=$('newInst').value.replace(/\s+/g,' ').trim();
+  if(!nome){toast('Digite o nome do instrutor.',1);$('newInst').focus();return}
+  if(instrs.some(x=>x.nome.toLowerCase()===nome.toLowerCase())){toast('Esse instrutor já está cadastrado.',1);return}
+  instrs.push({id:iuid++,nome});saveInstr();renderInstr();refreshInstrSelects();
+  $('newInst').value='';$('newInst').focus();toast('Instrutor adicionado.');
+}
+$('newInst').addEventListener('keydown',e=>{if(e.key==='Enter')addInstr()});
+function delInstr(id){
+  const t=instrs.find(x=>x.id===id);if(!t||!confirm('Excluir o instrutor "'+t.nome+'" do cadastro?'))return;
+  instrs=instrs.filter(x=>x.id!==id);
+  lists.forEach(l=>{if(l.iid===id){l.iid=null;l.instrutor=''}});
+  saveInstr();save();renderInstr();refreshInstrSelects();toast('Instrutor excluído.');
+}
+function senhaEdicao(msg){
+  let senha='';try{senha=sessionStorage.getItem('senha-edicao')||''}catch(e){}
+  if(!senha)senha=prompt(msg)||'';
+  return senha;
+}
+async function publishInstr(manual){
+  if(!iApi){if(manual)toast('Sem conexão com o servidor: o cadastro fica só neste computador.',1);return}
+  if(iPub)return;
+  let senha='';
+  if(iProt){senha=senhaEdicao('Senha de edição do cadastro (para publicar para todos):');if(!senha){toast('Alterações salvas só neste computador.');return}}
+  iPub=true;updInstSync();
+  try{
+    const r=await fetch('api/instrutores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({senha,itens:instrs.map(x=>({id:x.id,nome:x.nome}))})});
+    if(r.status===401){try{sessionStorage.removeItem('senha-edicao')}catch(e){}toast('Senha incorreta. Nada foi publicado.',1)}
+    else if(!r.ok)toast('Não consegui publicar agora. Tente de novo.',1);
+    else{try{if(senha)sessionStorage.setItem('senha-edicao',senha);localStorage.setItem(KID,'')}catch(e){}iDirty=false;if(manual)toast('Publicado para todos!')}
+  }catch(e){toast('Sem conexão. Nada foi publicado.',1)}
+  iPub=false;updInstSync();
+}
+async function syncInstr(){
+  try{
+    const r=await fetch('api/instrutores?'+Date.now(),{cache:'no-store'});
+    if(!r.ok)return;const j=await r.json();if(!j||!j.ok)return;
+    iApi=true;iProt=!!j.protegido;
+    if(Array.isArray(j.itens)){
+      if(!iDirty){instrs=j.itens.filter(x=>x&&x.nome);iuid=Math.max(1,...instrs.map(x=>x.id+1));saveInstr(false);reconcileInstr();renderInstr();refreshInstrSelects();save()}
+      else publishInstr(false);
+    }else if(instrs.length)publishInstr(false);   // servidor ainda sem cadastro: publica o que já existe aqui
+    updInstSync();
+  }catch(e){}
+}
+
 /* ---------- listas ---------- */
-function newList(){return{tid:null,nome:'',carga:null,inicio:'',manual:false,instrutor:'',extra:'',nomes:'',sid:null}}
+const emptyRow=()=>({nome:'',re:'',cc:'',cargo:'',on:true});
+const padRows=(a,n=5)=>{while(a.length<n)a.push(emptyRow());return a};
+function newList(){return{tid:null,nome:'',carga:null,inicio:'',manual:false,instrutor:'',iid:null,extra:'',pessoas:padRows([]),sid:null}}
+const temDados=p=>!!(String(p.nome||'').trim()||String(p.re||'').trim()||String(p.cc||'').trim()||String(p.cargo||'').trim());
+const rowBad=p=>p.on!==false&&temDados(p)&&!nomeOk(p.nome);
+function pessoasDe(L){return(L.pessoas||[]).filter(p=>p.on!==false).map(p=>({nome:normNome(p.nome),re:String(p.re||'').trim(),cc:String(p.cc||'').trim(),cargo:String(p.cargo||'').trim()})).filter(p=>p.nome)}
+function rowHtml(p,r){
+  return `<tr data-r="${r}" class="${rowBad(p)?'inv':''}${p.on===false?' off':''}"><td class="ck"><input type="checkbox" data-c="on" aria-label="Incluir na lista"${p.on===false?'':' checked'}></td><td class="n">${r+1}</td>
+    <td><input data-c="nome" value="${esc(p.nome||'')}" placeholder="Nome e sobrenome" autocomplete="off" maxlength="80"></td>
+    <td><input data-c="re" value="${esc(p.re||'')}" autocomplete="off" maxlength="20"></td>
+    <td><input data-c="cc" value="${esc(p.cc||'')}" autocomplete="off" maxlength="20"></td>
+    <td><input data-c="cargo" value="${esc(p.cargo||'')}" autocomplete="off" maxlength="60"></td>
+    <td class="a"><button class="icon danger" data-act="del" title="Remover linha">✕</button></td></tr>`;
+}
+function gridHtml(l){
+  return `<div class="pgw"><table class="pg"><thead><tr><th class="ck"><input type="checkbox" data-f="all" title="Marcar / desmarcar todos" aria-label="Marcar ou desmarcar todos"${l.pessoas.every(p=>p.on!==false)?' checked':''}></th><th>#</th><th>Nome e sobrenome</th><th>RE</th><th>C. Custo</th><th>Cargo</th><th></th></tr></thead><tbody data-f="pbody">${l.pessoas.map(rowHtml).join('')}</tbody></table></div>`;
+}
+function renderGrid(i,focusLast){
+  const d=document.querySelector(`.list[data-i="${i}"]`);if(!d)return;const l=lists[i];
+  d.querySelector('[data-f=pbody]').innerHTML=l.pessoas.map(rowHtml).join('');
+  const a=d.querySelector('[data-f=all]');if(a)a.checked=l.pessoas.every(p=>p.on!==false);
+  updCnt(i);save();
+  if(focusLast){const r=d.querySelectorAll('[data-f=pbody] tr'),t=r[r.length-1];if(t)t.querySelector('[data-c=nome]').focus()}
+}
+function problemaNomes(i){ // primeira linha inválida da lista i, ou null
+  const l=lists[i];const r=l.pessoas.findIndex(rowBad);return r>=0?r:null;
+}
+function mostrarProblema(i,r){
+  const d=document.querySelector(`.list[data-i="${i}"]`);if(!d)return;
+  renderGrid(i);
+  const tr=d.querySelector(`[data-f=pbody] tr[data-r="${r}"]`);
+  if(tr){tr.scrollIntoView({block:'center'});const n=tr.querySelector('[data-c=nome]');if(n)n.focus()}
+  toast(`Lista ${i+1}, linha ${r+1}: digite nome e sobrenome (ou desmarque a linha).`,1);
+}
 function setQty(n){
   n=Math.max(1,Math.min(50,n|0||1));$('qty').value=n;
   if(n===lists.length)return;
@@ -375,17 +534,18 @@ function renderLists(){
       <div class="full"><label>Treinamento</label><select data-f="tid">${optsHtml(l.tid)}</select></div>
       <div><label>Carga horária (h)</label><input data-f="carga" inputmode="decimal" value="${l.carga==null?'':fmtNum(l.carga)}" placeholder="auto"></div>
       <div><label>Horário</label><div class="time"><input type="time" data-f="inicio" value="${l.inicio}"><span class="to">às</span><span class="end" data-f="fim">--:--</span></div></div>
-      <div><label>Instrutor</label><input data-f="instrutor" value="${esc(l.instrutor)}" placeholder="Nome do instrutor"></div>
+      <div><label>Instrutor</label><select data-f="instr">${instrOpts(l)}</select></div>
       <div class="full"><label>Conteúdo adicional</label><textarea data-f="extra" rows="1" placeholder="Opcional">${esc(l.extra)}</textarea></div>
       <div class="full nomes"><label>Participantes <span class="cnt" data-f="cnt"></span></label>
-        <textarea data-f="nomes" rows="4" placeholder="Um nome por linha. Pode colar do Excel (colunas: Nome, RE, C.Custo, Cargo). Opcional.">${esc(l.nomes)}</textarea>
+        ${gridHtml(l)}
+        <div class="pgt"><button class="small" data-act="add">+ Linha</button><button class="small" data-act="add5">+ 5 linhas</button>${i>0?'<button class="small" data-act="cp1">Copiar participantes da lista 1</button>':''}<button class="small danger" data-act="clr">Limpar participantes</button><span class="hint" style="margin:0">Marque a caixa para incluir na lista · nomes saem em MAIÚSCULAS · pode colar direto do Excel (Nome, RE, C.Custo, Cargo)</span></div>
         <div class="dig"><button class="small primary" data-f="btnDig" onclick="openDigital(${i})">${l.sid?'Atualizar lista digital':'Abrir para assinatura digital'}</button>${l.sid?`<button class="small" onclick="showTab('digital')">Ver em Presença digital</button><span class="st">✔ lista digital aberta</span>`:''}</div>
       </div>
     </div></div>`).join('');
   lists.forEach((l,i)=>updCnt(i));
   recalcAll();save();
 }
-function updCnt(i){const d=document.querySelector(`.list[data-i="${i}"] [data-f=cnt]`);if(!d)return;const n=parseNomes(lists[i].nomes).length;d.textContent=n?'('+n+')':''}
+function updCnt(i){const d=document.querySelector(`.list[data-i="${i}"] [data-f=cnt]`);if(!d)return;const n=pessoasDe(lists[i]).length;d.textContent=n?'('+n+')':''}
 function setCarga(i){const d=document.querySelector(`.list[data-i="${i}"] [data-f=carga]`);if(d&&document.activeElement!==d)d.value=lists[i].carga==null?'':fmtNum(lists[i].carga)}
 function recalcAll(force){
   const g=$('inicio').value;
@@ -410,19 +570,83 @@ function renderAgenda(){
 }
 $('lists').addEventListener('input',e=>{
   const d=e.target.closest('.list');if(!d)return;const i=+d.dataset.i,l=lists[i],k=e.target.dataset.f;
+  if(e.target.dataset.c&&e.target.type!=='checkbox'){const tr=e.target.closest('tr[data-r]');l.pessoas[+tr.dataset.r][e.target.dataset.c]=e.target.value;updCnt(i);save();return}
   if(k==='carga'){const n=parseNum(e.target.value);l.carga=n;recalcAll()}
   else if(k==='inicio'){if(i===0){$('inicio').value=e.target.value}else l.manual=true;l.inicio=e.target.value;recalcAll()}
-  else if(k==='instrutor'||k==='extra')l[k]=e.target.value;
-  else if(k==='nomes'){l.nomes=e.target.value;updCnt(i)}
+  else if(k==='extra')l[k]=e.target.value;
   save();
 });
 $('lists').addEventListener('change',e=>{
-  const d=e.target.closest('.list');if(!d||e.target.dataset.f!=='tid')return;
-  const i=+d.dataset.i,l=lists[i],t=catalog.find(x=>x.id==e.target.value);
+  const d=e.target.closest('.list');if(!d)return;const i=+d.dataset.i,l=lists[i];
+  if(e.target.dataset.f==='all'){l.pessoas.forEach(p=>p.on=e.target.checked);renderGrid(i);return}
+  if(e.target.dataset.f==='instr'){const v=e.target.value;if(v==='L')return;const x=instrs.find(y=>String(y.id)===v);l.iid=x?x.id:null;l.instrutor=x?x.nome:'';save();return}
+  if(e.target.dataset.c){
+    const tr=e.target.closest('tr[data-r]'),p=l.pessoas[+tr.dataset.r],c=e.target.dataset.c;
+    if(c==='on')p.on=e.target.checked;
+    else if(c==='nome'){p.nome=normNome(e.target.value);e.target.value=p.nome}
+    else{p[c]=e.target.value.trim();e.target.value=p[c]}
+    tr.classList.toggle('inv',rowBad(p));tr.classList.toggle('off',p.on===false);
+    const a=d.querySelector('[data-f=all]');if(a)a.checked=l.pessoas.every(q=>q.on!==false);
+    updCnt(i);save();return;
+  }
+  if(e.target.dataset.f!=='tid')return;
+  const t=catalog.find(x=>x.id==e.target.value);
   l.tid=t?t.id:null;l.nome=t?t.nome:'';l.carga=t?t.carga:null;setCarga(i);recalcAll();save();
 });
 $('inicio').addEventListener('input',()=>{recalcAll();save()});
-function copyFirst(k){lists.forEach(l=>l[k]=lists[0][k]);document.querySelectorAll('.list').forEach((d,i)=>d.querySelector('[data-f='+k+']').value=lists[i][k]);save();toast('Copiado para todas as listas.')}
+$('lists').addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const d=b.closest('.list');if(!d)return;const i=+d.dataset.i,l=lists[i],a=b.dataset.act;
+  if(a==='del'){const r=+b.closest('tr').dataset.r;l.pessoas.splice(r,1);padRows(l.pessoas,1);renderGrid(i)}
+  else if(a==='add'){l.pessoas.push(emptyRow());renderGrid(i,true)}
+  else if(a==='add5'){for(let k=0;k<5;k++)l.pessoas.push(emptyRow());renderGrid(i,true)}
+  else if(a==='cp1'){copyPart(i)}
+  else if(a==='clr'){if(pessoasDe(l).length&&!confirm('Limpar todos os participantes da lista '+(i+1)+'?'))return;l.pessoas=padRows([]);renderGrid(i)}
+});
+$('lists').addEventListener('paste',e=>{ // colar do Excel: espalha por linhas e colunas
+  const t=e.target;if(!t.dataset||!t.dataset.c||t.type==='checkbox')return;
+  const txt=(e.clipboardData||window.clipboardData).getData('text');
+  if(!/[\t\n]/.test(txt.replace(/\r?\n$/,'')))return;   // texto simples: colagem normal
+  e.preventDefault();
+  const d=t.closest('.list'),i=+d.dataset.i,l=lists[i],cols=['nome','re','cc','cargo'];
+  let rows=txt.replace(/\r/g,'').replace(/\n+$/,'').split('\n').map(r=>r.split('\t'));
+  let r0=+t.closest('tr').dataset.r,c0=cols.indexOf(t.dataset.c);
+  if(rows.length&&/^nome( completo)?$/i.test((rows[0][0]||'').trim())){rows.shift()}
+  rows.forEach((cells,k)=>{
+    while(l.pessoas.length<=r0+k)l.pessoas.push(emptyRow());
+    const p=l.pessoas[r0+k];
+    cells.forEach((v,j)=>{const c=cols[c0+j];if(!c)return;p[c]=c==='nome'?normNome(v):v.trim()});
+  });
+  renderGrid(i);toast(rows.length+' linha(s) coladas.');
+});
+$('lists').addEventListener('keydown',e=>{ // Enter / setas movem entre as linhas, como no Excel
+  const t=e.target;if(!t.dataset||!t.dataset.c||t.type==='checkbox')return;
+  const dir=e.key==='Enter'?(e.shiftKey?-1:1):e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0;if(!dir)return;
+  e.preventDefault();
+  const tr=t.closest('tr'),d=t.closest('.list'),i=+d.dataset.i;
+  let nx=dir>0?tr.nextElementSibling:tr.previousElementSibling;
+  if(!nx&&dir>0&&e.key==='Enter'){t.dispatchEvent(new Event('change',{bubbles:true}));lists[i].pessoas.push(emptyRow());renderGrid(i);nx=d.querySelector('[data-f=pbody] tr:last-child')}
+  if(nx){const n=nx.querySelector(`[data-c="${t.dataset.c}"]`);if(n){n.focus();n.select&&n.select()}}
+});
+function copyPart(i){
+  const src=lists[0].pessoas.filter(temDados);
+  if(!src.length){toast('A lista 1 ainda não tem participantes.',1);return}
+  if(i>0&&lists[i].pessoas.some(temDados)&&!confirm('Substituir os participantes da lista '+(i+1)+' pelos da lista 1?'))return;
+  lists[i].pessoas=padRows(src.map(p=>({...p})));renderGrid(i);toast('Participantes copiados para a lista '+(i+1)+'.');
+}
+function copyFirst(k){
+  if(lists.length<2){toast('Crie mais de uma lista para copiar.',1);return}
+  if(k==='pessoas'){
+    if(!lists[0].pessoas.some(temDados)){toast('A lista 1 ainda não tem participantes.',1);return}
+    if(lists.slice(1).some(l=>l.pessoas.some(temDados))&&!confirm('Substituir os participantes das outras listas pelos da lista 1?'))return;
+    const src=lists[0].pessoas.filter(temDados);
+    lists.slice(1).forEach(l=>{l.pessoas=padRows(src.map(p=>({...p})))});
+  }else if(k==='instrutor'){
+    if(!lists[0].instrutor){toast('Selecione o instrutor da lista 1 primeiro.',1);return}
+    lists.forEach(l=>{l.iid=lists[0].iid;l.instrutor=lists[0].instrutor});
+  }else lists.forEach(l=>l[k]=lists[0][k]);
+  renderLists();toast('Copiado da lista 1 para todas as listas.');
+}
 function clearAll(){
   if(!confirm('Limpar todas as listas (treinamentos, horários, instrutores)? O cadastro de treinamentos é mantido.'))return;
   ['data','turma','local'].forEach(i=>$(i).value='');$('inicio').value='08:00';
@@ -434,12 +658,12 @@ function updateChips(){$('cDate').textContent=$('data').value?fmtDate($('data').
 /* ---------- salvar / carregar estado ---------- */
 function save(){try{localStorage.setItem(KS,JSON.stringify({data:$('data').value,turma:$('turma').value,local:$('local').value,inicio:$('inicio').value,lists}))}catch(e){}}
 function load(){
-  loadCat();renderCat();
+  loadCat();renderCat();loadInstr();renderInstr();
   try{
     const s=JSON.parse(localStorage.getItem(KS)||'null');
     if(s&&Array.isArray(s.lists)&&s.lists.length){
       $('data').value=s.data||'';$('turma').value=s.turma||'';$('local').value=s.local||'';$('inicio').value=s.inicio||'08:00';
-      lists=s.lists.map(l=>({...newList(),...l}));
+      lists=s.lists.map(l=>{const o={...newList(),...l};if(!Array.isArray(l.pessoas))o.pessoas=padRows(parseNomes(l.nomes).map(p=>({...p,on:true})));else padRows(o.pessoas,1);delete o.nomes;return o});reconcileInstr();
       lists.forEach(l=>{if(l.tid!=null){const t=catalog.find(x=>x.id===l.tid);if(!t){l.tid=null;l.nome='';l.carga=null}else l.nome=t.nome}});
       $('qty').value=lists.length;renderLists();updateChips();return;
     }
@@ -496,7 +720,7 @@ async function buildPdf(items){
         }
         const pe=ps[idx];if(!pe)continue;
         const base=H-(top+10.4);
-        const campos=[[pe.nome,62,198],[pe.re,203,240],[pe.cc,244,291],[pe.cargo,295,432]];
+        const campos=[[normNome(pe.nome),62,198],[pe.re,203,240],[pe.cc,244,291],[pe.cargo,295,432]];
         for(const[t0,x0,x1]of campos){
           const t=String(t0||'').replace(/[\r\n\t]+/g,' ');if(!t)continue;
           pg.drawText(t,{x:x0,y:base,size:ajusta(reg,t,x1-x0,8),font:reg,color:preto});
@@ -513,7 +737,7 @@ async function buildPdf(items){
   }
   return out.save();
 }
-async function makePdf(){return buildPdf(lists.map(L=>({vals:valsDaLista(L),pessoas:parseNomes(L.nomes)})))}
+async function makePdf(){return buildPdf(lists.map(L=>({vals:valsDaLista(L),pessoas:pessoasDe(L)})))}
 async function run(preview){
   const bad=lists.map((l,i)=>l.tid==null&&!l.nome?i:-1).filter(i=>i>=0);
   if(bad.length){
@@ -521,6 +745,7 @@ async function run(preview){
     document.querySelector(`.list[data-i="${bad[0]}"]`).scrollIntoView({block:'center'});
     toast('Selecione o treinamento da(s) lista(s): '+bad.map(i=>i+1).join(', ')+'.',1);return;
   }
+  for(let i=0;i<lists.length;i++){const r=problemaNomes(i);if(r!=null){mostrarProblema(i,r);return}}
   const btn=$('dl');btn.disabled=true;toast('Gerando PDF...');
   try{
     const bytes=await makePdf();const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
@@ -538,8 +763,9 @@ let aba='gerar',tSess=null;
 function showTab(t){
   aba=t;
   $('v-gerar').style.display=t==='gerar'?'':'none';$('bar').style.display=t==='gerar'?'':'none';
+  $('v-cad').style.display=t==='cad'?'':'none';
   $('v-digital').style.display=t==='digital'?'':'none';
-  $('tabG').classList.toggle('on',t==='gerar');$('tabD').classList.toggle('on',t==='digital');
+  $('tabG').classList.toggle('on',t==='gerar');$('tabC').classList.toggle('on',t==='cad');$('tabD').classList.toggle('on',t==='digital');
   clearInterval(tSess);
   if(t==='digital'){initDigital();tSess=setInterval(()=>{if(pin&&!document.hidden)loadSessions(true)},10000)}
   window.scrollTo({top:0});
@@ -583,8 +809,9 @@ function metaDeLista(L){const v=valsDaLista(L);return{treinamento:v.treinamento,
 async function openDigital(i){
   const L=lists[i];
   if(L.tid==null&&!L.nome){toast('Selecione o treinamento desta lista primeiro.',1);return}
-  const ps=parseNomes(L.nomes);
-  if(!ps.length){toast('Cole os nomes dos participantes desta lista.',1);return}
+  const pr=problemaNomes(i);if(pr!=null){mostrarProblema(i,pr);return}
+  const ps=pessoasDe(L);
+  if(!ps.length){toast('Preencha os participantes desta lista (nome e sobrenome).',1);return}
   if(ps.length>200){toast('O limite é de 200 participantes por lista digital.',1);return}
   if(!await ensurePin())return;
   const b=document.querySelector(`.list[data-i="${i}"] [data-f=btnDig]`);if(b)b.disabled=true;
@@ -672,7 +899,7 @@ async function pdfSessao(id){
     document.body.appendChild(a);a.click();a.remove();toast('PDF assinado gerado.');
   }catch(e){toast(e.message||'Erro ao gerar o PDF.',1)}
 }
-load();updateSync();syncRemote();
+load();updateSync();syncRemote();syncInstr();
 </script>
 </body>
 </html>
