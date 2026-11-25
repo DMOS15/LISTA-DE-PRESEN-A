@@ -1,5 +1,5 @@
 // Cadastro de instrutores compartilhado (Vercel Function + Upstash Redis via REST).
-// GET  /api/instrutores           -> { ok:true, itens:[{id,nome}]|null }
+// GET  /api/instrutores           -> { ok:true, itens:[{id,nome,dep}]|null }
 // POST /api/instrutores {itens}   -> grava; se EDIT_PASSWORD existir, exige {senha}
 const crypto = require('crypto');
 const KEY = 'catalogo-instrutores';
@@ -25,7 +25,8 @@ function validar(itens) {
     const nome = String((x && x.nome) || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
     const id = Number.isInteger(x && x.id) ? x.id : out.length + 1;
     if (!nome) return null;
-    out.push({ id, nome });
+    const dep = /^[a-z0-9-]{1,20}$/.test(String((x && x.dep) || '')) ? x.dep : 'xi';
+    out.push({ id, nome, dep });
   }
   return out;
 }

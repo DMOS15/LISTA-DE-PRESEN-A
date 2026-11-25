@@ -39,15 +39,43 @@ function ip(req) {
 }
 const espera = ms => new Promise(r => setTimeout(r, ms));
 
-// PIN da gestão: variável GESTAO_PIN no Vercel. Bloqueia o IP após 8 erros em 10 minutos.
-async function checarPin(req, res, pin) {
-  const esperado = process.env.GESTAO_PIN || '';
-  if (!esperado) { enviar(res, 503, { erro: 'PIN da gestão ainda não foi configurado no servidor' }); return false; }
+// ---------- Departamentos e PINs ----------
+// Departamentos ficam no Redis (chave "departamentos"): [{id,nome,salt,hash}]. O PIN de cada um é guardado só como hash (scrypt).
+// PIN MESTRE = variável GESTAO_PIN do Vercel: abre qualquer departamento e é o único que cria/exclui departamentos e define PINs.
+const DEP_KEY = 'departamentos';
+const DEP_PADRAO = [{ id: 'xi', nome: 'XI' }];
+const DEP_ID = /^[a-z0-9-]{1,20}$/;
+async function getDeps() {
+  const a = parse(await redis(['GET', DEP_KEY]));
+  return Array.isArray(a) && a.length ? a : DEP_PADRAO.map(d => ({ ...d }));
+}
+const saveDeps = deps => redis(['SET', DEP_KEY, JSON.stringify(deps)]);
+const depPublico = d => ({ id: d.id, nome: d.nome, temPin: !!d.hash });
+const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString('hex');
+function novoHash(pin) { const salt = crypto.randomBytes(16).toString('hex'); return { salt, hash: hashPin(pin, salt) }; }
+const igualTxt = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+function pinDepOk(d, pin) {
+  if (!d || !d.hash || !d.salt) return false;
+  const a = Buffer.from(hashPin(pin, d.salt), 'hex'), e = Buffer.from(d.hash, 'hex');
+  return a.length === e.length && crypto.timingSafeEqual(a, e);
+}
+function slug(nome) {
+  return String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'dep';
+}
+
+// Confere o PIN (mestre ou do departamento depId). Devolve {mestre, dep} ou false (já respondeu o erro).
+// Bloqueia o IP após 8 erros em 10 minutos.
+async function autenticar(req, res, pin, depId) {
+  const mestre = process.env.GESTAO_PIN || '';
+  const deps = await getDeps();
+  const d = deps.find(x => x.id === depId) || null;
+  if (!mestre && !deps.some(x => x.hash)) { enviar(res, 503, { erro: 'PIN da gestão ainda não foi configurado no servidor' }); return false; }
   const chave = 'falhas:' + ip(req);
   const n = parseInt(await redis(['GET', chave]) || '0', 10);
   if (n >= 8) { enviar(res, 429, { erro: 'Muitas tentativas. Aguarde alguns minutos.' }); return false; }
-  const a = Buffer.from(String(pin || '')), e = Buffer.from(esperado);
-  if (a.length === e.length && crypto.timingSafeEqual(a, e)) return true;
+  const p = String(pin || '');
+  if (mestre && igualTxt(p, mestre)) return { mestre: true, dep: d ? d.id : null };
+  if (d && pinDepOk(d, p)) return { mestre: false, dep: d.id };
   await pipe([['INCR', chave], ['EXPIRE', chave, 600]]);
   await espera(600);
   enviar(res, 401, { erro: 'PIN incorreto' });
@@ -73,4 +101,4 @@ const parse = v => { try { return JSON.parse(v); } catch (e) { return null; } };
 // HGETALL do Upstash volta [campo, valor, campo, valor...]
 function pares(arr) { const o = {}; for (let i = 0; i + 1 < (arr || []).length; i += 2) o[arr[i]] = arr[i + 1]; return o; }
 
-module.exports = { nomeNorm, nomeOk, redis, pipe, ID_OK, novoId, txt, corpo, enviar, checarPin, pessoa, metaLimpa, MAX_PART, parse, pares };
+module.exports = { getDeps, saveDeps, depPublico, novoHash, slug, DEP_ID, autenticar, nomeNorm, nomeOk, redis, pipe, ID_OK, novoId, txt, corpo, enviar, pessoa, metaLimpa, MAX_PART, parse, pares };

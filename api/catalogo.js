@@ -28,7 +28,8 @@ function validar(itens) {
     const carga = Number(x && x.carga);
     const id = Number.isInteger(x && x.id) ? x.id : out.length + 1;
     if (!nome || !isFinite(carga) || carga <= 0 || carga > 24) return null;
-    out.push({ id, nome, carga });
+    const dep = /^[a-z0-9-]{1,20}$/.test(String((x && x.dep) || '')) ? x.dep : 'xi';
+    out.push({ id, nome, carga, dep });
   }
   return out;
 }
