@@ -58,7 +58,7 @@ async function checarPin(req, res, pin) {
 const nomeNorm = x => txt(x, 80).replace(/\s+/g, ' ').toUpperCase();
 const nomeOk = x => nomeNorm(x).split(' ').filter(w => w.length >= 2).length >= 2;
 function pessoa(p) {
-  return { n: nomeNorm(p && p.nome), re: txt(p && p.re, 20), cc: txt(p && p.cc, 20), cargo: txt(p && p.cargo, 60) };
+  return { n: nomeNorm(p && p.nome), re: txt(p && p.re, 20).toUpperCase(), cc: txt(p && p.cc, 20).toUpperCase(), cargo: txt(p && p.cargo, 60).toUpperCase() };
 }
 function metaLimpa(m) {
   m = m || {};

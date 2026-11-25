@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
         const ass = L.pares(sg);
         const participantes = Object.entries(L.pares(pt)).map(([pid, v]) => ({ id: pid, ...L.parse(v) }))
           .sort((a, c) => (a.o || 0) - (c.o || 0))
-          .map(p => ({ id: p.id, nome: String(p.n || '').toUpperCase(), re: p.re, cc: p.cc, cargo: p.cargo, extra: !!p.x, assinatura: ass[p.id] ? L.parse(ass[p.id]) : null }));
+          .map(p => ({ id: p.id, nome: String(p.n || '').toUpperCase(), re: String(p.re || '').toUpperCase(), cc: String(p.cc || '').toUpperCase(), cargo: String(p.cargo || '').toUpperCase(), extra: !!p.x, assinatura: ass[p.id] ? L.parse(ass[p.id]) : null }));
         return L.enviar(res, 200, { ok: true, id, meta: m, participantes });
       }
 
@@ -97,7 +97,7 @@ module.exports = async (req, res) => {
 
       case 'excluir': {
         if (!comId()) return;
-        await L.pipe([['DEL', `sess:${id}`, `sess:${id}:pt`, `sess:${id}:sg`], ['ZREM', 'sessoes', id]]);
+        await L.pipe([['DEL', `sess:${id}`, `sess:${id}:pt`, `sess:${id}:sg`, `sess:${id}:rs`], ['ZREM', 'sessoes', id]]);
         return L.enviar(res, 200, { ok: true });
       }
 
