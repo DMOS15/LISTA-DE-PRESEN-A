@@ -920,12 +920,14 @@ function showTab(t){
   $('v-digital').style.display=t==='digital'?'':'none';
   $('tabG').classList.toggle('on',t==='gerar');$('tabC').classList.toggle('on',t==='cad');$('tabD').classList.toggle('on',t==='digital');
   clearInterval(tSess);
+  if(t!=='digital'){limparSessao();depEscolhida=''}
   if(t==='digital'){initDigital();tSess=setInterval(()=>{if(pin&&depAtual&&!document.hidden)loadSessions(true)},10000)}
   window.scrollTo({top:0});
 }
 /* ---------- PIN por departamento e chamadas à gestão ---------- */
 let pin='',depAtual='',mestre=false,depEscolhida='';
 try{pin=sessionStorage.getItem('pin-gestao')||'';depAtual=sessionStorage.getItem('dep-gestao')||'';mestre=sessionStorage.getItem('mestre-gestao')==='1'}catch(e){}
+limparSessaoInicial=()=>{try{['pin-gestao','dep-gestao','mestre-gestao'].forEach(k=>sessionStorage.removeItem(k))}catch(e){}pin='';depAtual='';mestre=false};limparSessaoInicial();
 function guardarSessao(){try{sessionStorage.setItem('pin-gestao',pin);sessionStorage.setItem('dep-gestao',depAtual);sessionStorage.setItem('mestre-gestao',mestre?'1':'')}catch(e){}}
 function limparSessao(){pin='';depAtual='';mestre=false;try{['pin-gestao','dep-gestao','mestre-gestao'].forEach(k=>sessionStorage.removeItem(k))}catch(e){}}
 class ErroGestao extends Error{constructor(st,msg){super(msg);this.st=st}}
@@ -945,17 +947,16 @@ async function validarPin(p,dep){
   catch(e){pin=antes.pin;depAtual=antes.depAtual;mestre=antes.mestre;guardarSessao();return e.message||'Não foi possível validar.'}
 }
 async function ensurePin(dep){
-  if(pin&&(depAtual===dep||mestre)){depAtual=dep;guardarSessao();return true}
+  if(pin&&depAtual===dep)return true;
   const p=prompt('PIN do departamento '+depNome(dep)+' (para criar/atualizar a lista digital):');if(!p)return false;
   const m=await validarPin(p,dep);if(m){toast(m,1);return false}return true;
 }
 function renderDepEsc(){$('depGrid').innerHTML=deps.map(d=>`<button data-dep="${esc(d.id)}">${esc(d.nome)}</button>`).join('')}
 $('depGrid').addEventListener('click',e=>{const b=e.target.closest('[data-dep]');if(b)escolherDep(b.dataset.dep)});
 function escolherDep(id){
-  depEscolhida=id;
-  if(pin&&mestre){depAtual=id;guardarSessao()}
+  depEscolhida=id;depAtual='';pin='';mestre=false;guardarSessao();
   initDigital();
-  if(!(pin&&depAtual)){const p=$('pinIn');if(p)setTimeout(()=>p.focus(),50)}
+  setTimeout(()=>{const p=$('pinIn');if(p)p.focus()},50);
 }
 async function entrarPin(){
   const m=await validarPin($('pinIn').value.trim(),depEscolhida);$('pinIn').value='';
@@ -963,8 +964,7 @@ async function entrarPin(){
   $('gateMsg').textContent='';initDigital();
 }
 function sairPin(){
-  depEscolhida='';
-  if(mestre){depAtual='';guardarSessao()}else limparSessao();
+  depEscolhida='';limparSessao();
   initDigital();
 }
 async function trocarPinDep(){
@@ -1007,7 +1007,7 @@ async function openDigital(i){
     }
     if(!L.sid){const j=await gestao('criar',{meta,participantes:ps});L.sid=j.id;toast('Lista digital aberta para assinatura!')}
     save();renderLists();showTab('digital');
-  }catch(e){toast(e.message,1);if(b)b.disabled=false}
+  }catch(e){toast(e.message,1);if(b)b.disabled=false;if(aba!=='digital')limparSessao()}
 }
 /* ---------- painel de presença digital ---------- */
 const linkSess=id=>new URL('assinar.html?s='+id,location.href).href;
