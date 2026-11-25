@@ -5,12 +5,12 @@ const L = require('./_lib');
 function montarPartes(lista, existentes) {
   // Reaproveita o id de quem já está na lista (mesmo id ou mesmo nome) para não perder a assinatura.
   const porNome = {};
-  Object.entries(existentes || {}).forEach(([pid, v]) => { const p = L.parse(v); if (p) porNome[(p.n || '').toLowerCase()] = pid; });
+  Object.entries(existentes || {}).forEach(([pid, v]) => { const p = L.parse(v); if (p) porNome[(p.n || '').toUpperCase()] = pid; });
   const usados = new Set(), saida = [];
   (lista || []).slice(0, L.MAX_PART).forEach((raw, i) => {
     const p = L.pessoa(raw);
-    if (!p.n) return;
-    let pid = raw && raw.id && existentes && existentes[raw.id] !== undefined ? raw.id : porNome[p.n.toLowerCase()];
+    if (!p.n || !L.nomeOk(p.n)) return;
+    let pid = raw && raw.id && existentes && existentes[raw.id] !== undefined ? raw.id : porNome[p.n.toUpperCase()];
     if (!pid || usados.has(pid)) pid = 'p' + Date.now().toString(36) + i.toString(36) + Math.floor(Math.random() * 1296).toString(36);
     usados.add(pid);
     saida.push([pid, JSON.stringify({ ...p, o: i + 1 })]);
@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
         const ass = L.pares(sg);
         const participantes = Object.entries(L.pares(pt)).map(([pid, v]) => ({ id: pid, ...L.parse(v) }))
           .sort((a, c) => (a.o || 0) - (c.o || 0))
-          .map(p => ({ id: p.id, nome: p.n, re: p.re, cc: p.cc, cargo: p.cargo, extra: !!p.x, assinatura: ass[p.id] ? L.parse(ass[p.id]) : null }));
+          .map(p => ({ id: p.id, nome: String(p.n || '').toUpperCase(), re: p.re, cc: p.cc, cargo: p.cargo, extra: !!p.x, assinatura: ass[p.id] ? L.parse(ass[p.id]) : null }));
         return L.enviar(res, 200, { ok: true, id, meta: m, participantes });
       }
 

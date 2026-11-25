@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
       const assinou = new Set(sg || []);
       const partes = Object.entries(L.pares(pt)).map(([pid, v]) => ({ pid, ...L.parse(v) }))
         .sort((a, b) => (a.o || 0) - (b.o || 0))
-        .map(p => ({ id: p.pid, nome: p.n, assinou: assinou.has(p.pid) }));
+        .map(p => ({ id: p.pid, nome: String(p.n || '').toUpperCase(), assinou: assinou.has(p.pid) }));
       const { treinamento, data, turma, local, horario, instrutor, encerrada } = m;
       return L.enviar(res, 200, { ok: true, meta: { treinamento, data, turma, local, horario, instrutor, encerrada: !!encerrada }, participantes: partes });
     }
@@ -41,8 +41,8 @@ module.exports = async (req, res) => {
         return L.enviar(res, 200, { ok: true });
       }
       if (b.acao === 'incluir') {
-        const nome = L.txt(b.nome, 80);
-        if (nome.length < 3) return L.enviar(res, 400, { erro: 'Digite o nome completo' });
+        const nome = L.nomeNorm(b.nome);
+        if (!L.nomeOk(nome)) return L.enviar(res, 400, { erro: 'Digite nome e sobrenome' });
         const [qtd] = await L.pipe([['HLEN', `sess:${id}:pt`]]);
         if (qtd >= L.MAX_PART) return L.enviar(res, 400, { erro: 'Lista cheia' });
         const pid = 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);

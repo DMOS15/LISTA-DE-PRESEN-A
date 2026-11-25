@@ -54,8 +54,11 @@ async function checarPin(req, res, pin) {
   return false;
 }
 
+// Nome sempre em MAIÚSCULAS, com espaços normalizados; precisa ter nome e sobrenome.
+const nomeNorm = x => txt(x, 80).replace(/\s+/g, ' ').toUpperCase();
+const nomeOk = x => nomeNorm(x).split(' ').filter(w => w.length >= 2).length >= 2;
 function pessoa(p) {
-  return { n: txt(p && p.nome, 80), re: txt(p && p.re, 20), cc: txt(p && p.cc, 20), cargo: txt(p && p.cargo, 60) };
+  return { n: nomeNorm(p && p.nome), re: txt(p && p.re, 20), cc: txt(p && p.cc, 20), cargo: txt(p && p.cargo, 60) };
 }
 function metaLimpa(m) {
   m = m || {};
@@ -70,4 +73,4 @@ const parse = v => { try { return JSON.parse(v); } catch (e) { return null; } };
 // HGETALL do Upstash volta [campo, valor, campo, valor...]
 function pares(arr) { const o = {}; for (let i = 0; i + 1 < (arr || []).length; i += 2) o[arr[i]] = arr[i + 1]; return o; }
 
-module.exports = { redis, pipe, ID_OK, novoId, txt, corpo, enviar, checarPin, pessoa, metaLimpa, MAX_PART, parse, pares };
+module.exports = { nomeNorm, nomeOk, redis, pipe, ID_OK, novoId, txt, corpo, enviar, checarPin, pessoa, metaLimpa, MAX_PART, parse, pares };
