@@ -109,7 +109,8 @@ table.pg td.ck,table.pg th.ck{width:34px;text-align:center}
 table.pg td.ck input,table.pg th.ck input{width:auto;margin:0}
 table.pg td.a{width:40px;text-align:center}
 table.pg td input[data-c]:not([type=checkbox]){border:0;border-radius:0;background:transparent;padding:6px 7px;font-size:13px}
-table.pg td input[data-c=nome]{text-transform:uppercase;min-width:200px}
+table.pg td input[data-c]{text-transform:uppercase}
+table.pg td input[data-c=nome]{min-width:200px}
 table.pg td input[data-c]:focus{background:#fffbe8;outline:2px solid var(--mocha);outline-offset:-2px}
 table.pg tr.inv td{background:#fbe3dc}
 table.pg tr.inv td input[data-c=nome]{color:var(--err);font-weight:700}
@@ -485,7 +486,7 @@ const padRows=(a,n=5)=>{while(a.length<n)a.push(emptyRow());return a};
 function newList(){return{tid:null,nome:'',carga:null,inicio:'',manual:false,instrutor:'',iid:null,extra:'',pessoas:padRows([]),sid:null}}
 const temDados=p=>!!(String(p.nome||'').trim()||String(p.re||'').trim()||String(p.cc||'').trim()||String(p.cargo||'').trim());
 const rowBad=p=>p.on!==false&&temDados(p)&&!nomeOk(p.nome);
-function pessoasDe(L){return(L.pessoas||[]).filter(p=>p.on!==false).map(p=>({nome:normNome(p.nome),re:String(p.re||'').trim(),cc:String(p.cc||'').trim(),cargo:String(p.cargo||'').trim()})).filter(p=>p.nome)}
+function pessoasDe(L){return(L.pessoas||[]).filter(p=>p.on!==false).map(p=>({nome:normNome(p.nome),re:normNome(p.re),cc:normNome(p.cc),cargo:normNome(p.cargo)})).filter(p=>p.nome)}
 function rowHtml(p,r){
   return `<tr data-r="${r}" class="${rowBad(p)?'inv':''}${p.on===false?' off':''}"><td class="ck"><input type="checkbox" data-c="on" aria-label="Incluir na lista"${p.on===false?'':' checked'}></td><td class="n">${r+1}</td>
     <td><input data-c="nome" value="${esc(p.nome||'')}" placeholder="Nome e sobrenome" autocomplete="off" maxlength="80"></td>
@@ -538,7 +539,7 @@ function renderLists(){
       <div class="full"><label>Conteúdo adicional</label><textarea data-f="extra" rows="1" placeholder="Opcional">${esc(l.extra)}</textarea></div>
       <div class="full nomes"><label>Participantes <span class="cnt" data-f="cnt"></span></label>
         ${gridHtml(l)}
-        <div class="pgt"><button class="small" data-act="add">+ Linha</button><button class="small" data-act="add5">+ 5 linhas</button>${i>0?'<button class="small" data-act="cp1">Copiar participantes da lista 1</button>':''}<button class="small danger" data-act="clr">Limpar participantes</button><span class="hint" style="margin:0">Marque a caixa para incluir na lista · nomes saem em MAIÚSCULAS · pode colar direto do Excel (Nome, RE, C.Custo, Cargo)</span></div>
+        <div class="pgt"><button class="small" data-act="add">+ Linha</button><button class="small" data-act="add5">+ 5 linhas</button>${i>0?'<button class="small" data-act="cp1">Copiar participantes da lista 1</button>':''}<button class="small danger" data-act="clr">Limpar participantes</button><span class="hint" style="margin:0">Marque a caixa para incluir na lista · tudo sai em MAIÚSCULAS · pode colar direto do Excel (Nome, RE, C.Custo, Cargo)</span></div>
         <div class="dig"><button class="small primary" data-f="btnDig" onclick="openDigital(${i})">${l.sid?'Atualizar lista digital':'Abrir para assinatura digital'}</button>${l.sid?`<button class="small" onclick="showTab('digital')">Ver em Presença digital</button><span class="st">✔ lista digital aberta</span>`:''}</div>
       </div>
     </div></div>`).join('');
@@ -584,7 +585,7 @@ $('lists').addEventListener('change',e=>{
     const tr=e.target.closest('tr[data-r]'),p=l.pessoas[+tr.dataset.r],c=e.target.dataset.c;
     if(c==='on')p.on=e.target.checked;
     else if(c==='nome'){p.nome=normNome(e.target.value);e.target.value=p.nome}
-    else{p[c]=e.target.value.trim();e.target.value=p[c]}
+    else{p[c]=normNome(e.target.value);e.target.value=p[c]}
     tr.classList.toggle('inv',rowBad(p));tr.classList.toggle('off',p.on===false);
     const a=d.querySelector('[data-f=all]');if(a)a.checked=l.pessoas.every(q=>q.on!==false);
     updCnt(i);save();return;
@@ -615,7 +616,7 @@ $('lists').addEventListener('paste',e=>{ // colar do Excel: espalha por linhas e
   rows.forEach((cells,k)=>{
     while(l.pessoas.length<=r0+k)l.pessoas.push(emptyRow());
     const p=l.pessoas[r0+k];
-    cells.forEach((v,j)=>{const c=cols[c0+j];if(!c)return;p[c]=c==='nome'?normNome(v):v.trim()});
+    cells.forEach((v,j)=>{const c=cols[c0+j];if(!c)return;p[c]=normNome(v)});
   });
   renderGrid(i);toast(rows.length+' linha(s) coladas.');
 });
@@ -720,7 +721,7 @@ async function buildPdf(items){
         }
         const pe=ps[idx];if(!pe)continue;
         const base=H-(top+10.4);
-        const campos=[[normNome(pe.nome),62,198],[pe.re,203,240],[pe.cc,244,291],[pe.cargo,295,432]];
+        const campos=[[normNome(pe.nome),62,198],[normNome(pe.re),203,240],[normNome(pe.cc),244,291],[normNome(pe.cargo),295,432]];
         for(const[t0,x0,x1]of campos){
           const t=String(t0||'').replace(/[\r\n\t]+/g,' ');if(!t)continue;
           pg.drawText(t,{x:x0,y:base,size:ajusta(reg,t,x1-x0,8),font:reg,color:preto});

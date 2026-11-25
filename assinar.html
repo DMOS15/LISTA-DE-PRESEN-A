@@ -24,6 +24,8 @@ input:focus,button:focus-visible{outline:3px solid var(--mocha);outline-offset:1
 .nome{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:inherit;font-weight:700;font-size:18px;padding:16px;min-height:60px;border:2px solid var(--doppio);border-radius:10px;background:var(--flat);color:var(--doppio);cursor:pointer}
 .nome:active{background:var(--latte)}
 .nome.feito{border-color:var(--latte);background:var(--crema);color:#7a7260;cursor:default}
+.nome.ocupado .ck{color:var(--mocha)}
+.aviso{background:var(--crema);border:2px solid var(--mocha);border-radius:10px;padding:12px 14px;font-weight:700;margin:0 0 10px}
 .nome .ck{font-weight:700;color:var(--ok);white-space:nowrap}
 .sec{background:none;border:2px dashed var(--mocha);color:var(--doppio);margin-top:6px;font-weight:700}
 button.b{font:inherit;font-weight:700;border-radius:10px;border:2px solid var(--doppio);background:var(--flat);color:var(--doppio);padding:16px 18px;min-height:56px;cursor:pointer;flex:1}
@@ -49,6 +51,7 @@ h2{margin:0 0 10px;font-size:24px}
     <div class="info"><b id="iTrein"></b><span id="iDet"></span><div class="prog"><i id="iProg"></i></div><span id="iCont"></span></div>
     <div id="encerrada" class="oculto centro"><h2>Lista encerrada</h2><p>O instrutor já encerrou esta lista de presença.</p></div>
     <div id="area-nomes">
+      <div class="aviso oculto" id="avisoLista" role="alert"></div>
       <input type="search" id="busca" placeholder="Buscar seu nome…" autocomplete="off">
       <div class="nomes" id="nomes"></div>
       <button class="nome sec" id="outro" type="button">Meu nome não está na lista</button>
@@ -76,7 +79,13 @@ h2{margin:0 0 10px;font-size:24px}
 (function(){
 const $=id=>document.getElementById(id);
 const ID=new URLSearchParams(location.search).get('s')||'';
-let dados=null,alvo=null,extra=false,nomeExtra='',tAuto=null;
+let dados=null,alvo=null,extra=false,nomeExtra='',tAuto=null,tRes=null,tAviso=null;
+// identifica este aparelho/aba na reserva do nome (sorteado a cada abertura da página)
+const TOK=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(36).padStart(2,'0')).join('');
+function aviso(m){const a=$('avisoLista');a.textContent=m||'';a.classList.toggle('oculto',!m);clearTimeout(tAviso);if(m)tAviso=setTimeout(()=>aviso(''),7000)}
+async function postar(corpo){const r=await fetch('api/sessao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});return{r,j:await r.json().catch(()=>({}))}}
+function pararReserva(){clearInterval(tRes);tRes=null}
+function soltar(){if(alvo&&!extra){const a=alvo;pararReserva();postar({acao:'liberar',id:ID,pid:a,tok:TOK}).catch(()=>{})}}
 const telas=['load','fatal','tela-lista','tela-outro','tela-assinar','tela-ok'];
 function ir(t){telas.forEach(x=>$(x).classList.toggle('oculto',x!==t))}
 function fatal(m){$('fatalMsg').textContent=m;ir('fatal')}
@@ -84,7 +93,7 @@ function fmt(d){if(!d)return'';const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y}
 async function carregar(manter){
   if(!/^[a-z2-7]{16}$/.test(ID))return fatal('O link está incompleto. Peça ao instrutor para mostrar o QR code novamente.');
   try{
-    const r=await fetch('api/sessao?id='+ID+'&t='+Date.now(),{cache:'no-store'});
+    const r=await fetch('api/sessao?id='+ID+'&tok='+TOK+'&t='+Date.now(),{cache:'no-store'});
     const j=await r.json();
     if(!r.ok)return fatal(j.erro||'Lista não encontrada.');
     dados=j;desenhar();
@@ -102,19 +111,30 @@ function desenhar(){
   const q=($('busca').value||'').trim().toLowerCase();
   $('nomes').innerHTML='';
   p.filter(x=>!q||x.nome.toLowerCase().includes(q)).forEach(x=>{
-    const b=document.createElement('button');b.type='button';b.className='nome'+(x.assinou?' feito':'');
+    const b=document.createElement('button');b.type='button';b.className='nome'+(x.assinou?' feito':x.ocupado?' feito ocupado':'');
     b.innerHTML='<span></span><span class="ck"></span>';b.firstChild.textContent=x.nome;
     if(x.assinou){b.lastChild.textContent='✔ assinou';b.disabled=true}
+    else if(x.ocupado){b.lastChild.textContent='⏳ alguém já está assinando';b.disabled=true}
     else b.onclick=()=>comecar(x.id,x.nome,false);
     $('nomes').appendChild(b);
   });
 }
 $('busca').oninput=desenhar;
-function comecar(pid,nome,ex){alvo=pid;extra=ex;nomeExtra=nome;$('quem').textContent=nome;limpar();$('erroAss').textContent='';ir('tela-assinar');ajustar()}
+async function comecar(pid,nome,ex){
+  if(!ex){ // trava o nome: só a primeira pessoa a clicar consegue
+    try{
+      const{r,j}=await postar({acao:'reservar',id:ID,pid,tok:TOK});
+      if(!r.ok){await carregar(true);aviso(j.erro||'Não foi possível escolher este nome. Tente de novo.');ir('tela-lista');return}
+    }catch(e){aviso('Sem conexão com a internet. Tente de novo.');return}
+    pararReserva();tRes=setInterval(()=>{postar({acao:'reservar',id:ID,pid,tok:TOK}).catch(()=>{})},40000); // mantém a reserva enquanto assina
+  }
+  alvo=pid;extra=ex;nomeExtra=nome;$('quem').textContent=nome;limpar();$('erroAss').textContent='';aviso('');ir('tela-assinar');ajustar()
+}
 $('outro').onclick=()=>{$('novoNome').value='';$('outroErro').textContent='';ir('tela-outro');$('novoNome').focus()};
 $('outroVoltar').onclick=()=>ir('tela-lista');
 $('outroSeguir').onclick=()=>{const n=$('novoNome').value.trim().replace(/\s+/g,' ');if(n.split(' ').filter(w=>w.length>=2).length<2){$('outroErro').textContent='Digite nome e sobrenome.';return}comecar(null,n.toUpperCase(),true)};
-$('voltar').onclick=()=>{ir(extra?'tela-outro':'tela-lista')};
+$('voltar').onclick=()=>{if(extra){ir('tela-outro');return}soltar();alvo=null;ir('tela-lista');carregar(true)};
+window.addEventListener('pagehide',()=>{if(alvo&&!extra&&!$('tela-assinar').classList.contains('oculto')&&navigator.sendBeacon)navigator.sendBeacon('api/sessao',new Blob([JSON.stringify({acao:'liberar',id:ID,pid:alvo,tok:TOK})],{type:'application/json'}))});
 
 /* ---- quadro de assinatura ---- */
 const cv=$('quadro'),cx=cv.getContext('2d');let tracos=[],atual=null,pontos=0;
@@ -150,17 +170,17 @@ function exportar(){
 $('confirmar').onclick=async()=>{
   const b=$('confirmar');b.disabled=true;$('erroAss').textContent='';
   try{
-    const corpo=extra?{acao:'incluir',id:ID,nome:nomeExtra,img:exportar()}:{acao:'assinar',id:ID,pid:alvo,img:exportar()};
+    const corpo=extra?{acao:'incluir',id:ID,nome:nomeExtra,img:exportar()}:{acao:'assinar',id:ID,pid:alvo,tok:TOK,img:exportar()};
     const r=await fetch('api/sessao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
     const j=await r.json().catch(()=>({}));
-    if(r.status===409){await carregar(true);ir('tela-lista');return}
+    if(r.status===409){pararReserva();alvo=null;await carregar(true);aviso(j.erro||'Este nome não está mais disponível.');ir('tela-lista');return}
     if(!r.ok){$('erroAss').textContent=j.erro||'Não consegui registrar. Tente de novo.';b.disabled=false;return}
-    $('okNome').textContent=nomeExtra;ir('tela-ok');
+    pararReserva();alvo=null;$('okNome').textContent=nomeExtra;ir('tela-ok');
     clearTimeout(tAuto);tAuto=setTimeout(async()=>{await carregar(true);ir('tela-lista')},2200);
   }catch(e){$('erroAss').textContent='Sem conexão. Sua assinatura não foi enviada — tente de novo.';b.disabled=false}
 };
 // atualiza a lista de tempos em tempos (quem assinou em outro aparelho aparece marcado)
-setInterval(()=>{if(!$('tela-lista').classList.contains('oculto')&&!$('busca').value)carregar(true)},15000);
+setInterval(()=>{if(!$('tela-lista').classList.contains('oculto'))carregar(true)},5000);
 carregar(false);
 })();
 </script>
